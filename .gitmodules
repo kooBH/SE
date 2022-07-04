@@ -1,3 +1,6 @@
 [submodule "src/utils"]
 	path = src/utils
 	url = https://github.com/koobh/ptUtils
+[submodule "src/UNet"]
+	path = src/UNet
+	url = https://github.com/kooBH/UNet.git

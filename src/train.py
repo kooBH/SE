@@ -6,22 +6,34 @@ import numpy as np
 
 from tensorboardX import SummaryWriter
 
-from model.Model import Model
 from Dataset import Dataset
 
 from utils.hparams import HParam
 from utils.writer import MyWriter
+from utils.Loss import wSDRLoss
+
+from UNet.UNet import UNet
 
 
-def run(data,model,criterion,ret_output=False): 
-    input = data['input'].to(device)
-    target = data['target'].to(device)
-    output = model(input)
+def run(hp,data,model,criterion,ret_output=False,device="cuda:0"): 
 
-    loss = criterion(output,target).to(device)
+    # convert to mag
+    noisy_mag = data["noisy_mag"].to(device)
+    noisy_phase = data["noisy_phase"].to(device)
+
+    mask = model(noisy_mag)
+
+    # masking
+    estim_mag = noisy_mag*mask
+    estim_spec = estim_mag * (noisy_phase*1j).to(device)
+
+    # inverse
+    estim_wav = torch.istft(estim_spec[:,0,:,:],n_fft = 512)
+
+    loss = criterion(estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDR.alpha).to(device)
 
     if ret_output :
-        return output, loss
+        return estim_mag, loss
     else : 
         return loss
 
@@ -33,24 +45,23 @@ if __name__ == '__main__':
                         help="version of current training")
     parser.add_argument('--chkpt',type=str,required=False,default=None)
     parser.add_argument('--step','-s',type=int,required=False,default=0)
+    parser.add_argument('--device','-d',type=str,required=False,default="cuda:0")
     args = parser.parse_args()
 
     hp = HParam(args.config)
     print("NOTE::Loading configuration : "+args.config)
 
-    device = hp.gpu
+    device = args.device
     version = args.version_name
     torch.cuda.set_device(device)
 
     batch_size = hp.train.batch_size
-    block = hp.model.Model.block
     num_epochs = hp.train.epoch
     num_workers = hp.train.num_workers
 
     best_loss = 1e7
 
     ## load
-
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
     log_dir = hp.log.root+'/'+'log'+'/'+version
 
@@ -60,25 +71,21 @@ if __name__ == '__main__':
     writer = MyWriter(hp, log_dir)
 
     ## target
-
-    ## TODO
-
-    # TODO
-    train_dataset = DatasetModel(hp.data.root_train)
-    test_dataset= DatasetModel(hp.data.root_test)
+    train_dataset = Dataset(hp.data.root_train)
+    test_dataset= Dataset(hp.data.root_test)
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers)
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers)
 
-    # TODO
-    model = ModelModel(hp).to(device)
+    model = UNet(
+        device=device
+    ).to(device)
 
     if not args.chkpt == None : 
         print('NOTE::Loading pre-trained model : '+ args.chkpt)
         model.load_state_dict(torch.load(args.chkpt, map_location=device))
 
-    # TODO
-    criterion = torch.nn.MSELoss()
+    criterion = wSDRLoss
 
     optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.adam)
 
@@ -103,12 +110,10 @@ if __name__ == '__main__':
         ### TRAIN ####
         model.train()
         train_loss=0
-        for i, (batch_data) in enumerate(train_loader):
-            step +=1
-            
-            # TODO
+        for i, data in enumerate(train_loader):
+            step +=data["noisy_mag"].shape[0]
 
-            loss = run(batch_data,model,criterion)
+            loss = run(hp,data,model,criterion,device=device)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
@@ -126,8 +131,10 @@ if __name__ == '__main__':
         model.eval()
         with torch.no_grad():
             test_loss =0.
-            for j, (batch_data) in enumerate(test_loader):
-                loss = run(batch_data,model,criterion)
+            for j, (data) in enumerate(test_loader):
+
+
+                estim, loss = run(hp,data,model,criterion,ret_output=True,device=device)
                 test_loss += loss.item()
 
                 print('TEST::{} :  Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version, epoch+1, num_epochs, j+1, len(test_loader), loss.item()))
@@ -137,6 +144,25 @@ if __name__ == '__main__':
             scheduler.step(test_loss)
             
             writer.log_value(test_loss,step,'test lost : ' + hp.loss.type)
+            writer.log_spec(torch.abs(torch.stft(data["noisy_wav"][0],n_fft=512,return_complex=True)),"noisy",step)
+            writer.log_spec(estim[0,0],"estim",step)
+            writer.log_spec(torch.abs(torch.stft(data["clean_wav"][0],n_fft=512,return_complex=True)),"clean",step)
+
+
+            clean_wav = data["clean_wav"][0].cpu().detach().numpy()
+            noisy_wav = data["noisy_wav"][0].cpu().detach().numpy()
+
+            writer.log_audio(clean_wav,"clean",step,sr=8000)
+            writer.log_audio(noisy_wav,"noisy",step,sr=8000)
+
+            noisy_phase = data["noisy_phase"][0].to(device)
+            estim_spec = data["noisy_mag"][0].to(device)*(estim[0]*1j)
+            estim_wav = torch.istft(estim_spec[0,:,:],n_fft = 512)
+
+            estim_wav = estim_wav/torch.max(torch.abs(estim_wav))
+            estim_wav = estim_wav.cpu().detach().numpy()
+
+            writer.log_audio(estim_wav,"estim",step,sr=8000)
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')
