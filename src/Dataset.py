@@ -1,20 +1,28 @@
-import os, glob
+import os
+from glob import glob
 import torch
 import librosa
 
+
+list_clean = []
+list_noise = []
+
+dir_clean = 
+list_clean = [glob(os.path.join())]
+list_noise = 
+
 class Dataset(torch.utils.data.Dataset):
-    def __init__(self, root):
-        self.root = root
-        self.list_noisy = glob.glob(os.path.join(root,"noisy","*.wav"))
+    def __init__(self):
 
     def __getitem__(self, index):
         path_noisy = self.list_noisy[index]
         name_noisy = path_noisy.split('/')[-1]
         path_clean = os.path.join(self.root,"clean",name_noisy)
 
-
         noisy_wav, _ = librosa.load(path_noisy,sr=8000,mono=True)
         clean_wav , _ = librosa.load(path_clean,sr=8000,mono=True)
+
+        ## TODO: mixing
 
         noisy_wav = torch.from_numpy(noisy_wav)
         clean_wav = torch.from_numpy(clean_wav)
