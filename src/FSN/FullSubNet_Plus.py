@@ -20,7 +20,10 @@ import torch.nn.init as init
 from torch.nn import functional
 import numpy as np
 
-from modules import *
+try : 
+    from .FSN_modules import *
+except ImportError:
+    from FSN_modules import *
 
 ####
 
@@ -200,11 +203,14 @@ class FullSubNet_Plus(BaseModel):
         sb_input = self.norm(sb_input)
 
         # Speeding up training without significant performance degradation. These will be updated to the paper later.
+        """
         if batch_size > 1:
             sb_input = drop_band(sb_input.permute(0, 2, 1, 3),
                                  num_groups=self.num_groups_in_drop_band)  # [B, (F_s + F_f), F//num_groups, T]
+            print("sb_input 2: {}".format(sb_input.shape))
             num_freqs = sb_input.shape[2]
             sb_input = sb_input.permute(0, 2, 1, 3)  # [B, F//num_groups, (F_s + F_f), T]
+        """
 
         sb_input = sb_input.reshape(
             batch_size * num_freqs,
@@ -212,12 +218,23 @@ class FullSubNet_Plus(BaseModel):
             num_frames
         )
 
+
         # [B * F, (F_s + F_f), T] => [B * F, 2, T] => [B, F, 2, T]
         sb_mask = self.sb_model(sb_input)
         sb_mask = sb_mask.reshape(batch_size, num_freqs, self.output_size, num_frames).permute(0, 2, 1, 3).contiguous()
 
         output = sb_mask[:, :, :, self.look_ahead:]
         return output
+
+    def output(self,output,real,imag):
+        output = output.permute(0, 2, 3, 1)
+        output = decompress_cIRM(output)
+        output = output.permute(0, 3, 1, 2)
+
+        enhanced_real = output[:,0:1,:,:] * real + output[:,1:2,:,:] * imag
+        enhanced_imag = output[:,1:2,:,:] * real + output[:,0:1,:,:] * imag
+
+        return (enhanced_real + enhanced_imag*1j)
 
 # test
 if __name__ == "__main__" : 
@@ -273,14 +290,12 @@ if __name__ == "__main__" :
         imag = imag .unsqueeze(1)
 
         pred_crm = model(mag,real,imag)
-        pred_crm = pred_crm.permute(0, 2, 3, 1)
+        enhanced_complex =  model.output(pred_crm,real,imag)
 
-        pred_crm = decompress_cIRM(pred_crm)
-        enhanced_real = pred_crm[..., 0] * X.real - pred_crm[..., 1] * X.imag
-        enhanced_imag = pred_crm[..., 1] * X.real + pred_crm[..., 0] * X.imag
-        enhanced_complex = torch.stack((enhanced_real, enhanced_imag), dim=-1)
+        print(enhanced_complex.shape)
+
         enhanced = torch.istft(
-            enhanced_complex,
+            enhanced_complex[:,0,:,:],
             n_fft=n_fft,
             hop_length = n_hop,
             length=x.shape[-1],

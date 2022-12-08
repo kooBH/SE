@@ -6,7 +6,8 @@ import numpy as np
 
 from tensorboardX import SummaryWriter
 
-from DatasetGender import DatasetGender
+from Dataset.DatasetGender import DatasetGender
+from Dataset.DatasetSPEAR import DatasetSPEAR
 
 from utils.hparams import HParam
 from utils.writer import MyWriter
@@ -28,7 +29,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     hp = HParam(args.config,args.default)
-    print("NOTE::Loading configuration : "+args.config)
+    print("NOTE::Loading configuration {} based on {}".format(args.config,args.default))
     global device
 
     device = args.device
@@ -50,24 +51,45 @@ if __name__ == '__main__':
 
     writer = MyWriter(hp, log_dir)
 
-    ## target
-    train_dataset = DatasetGender(hp.data.root_train,hp)
-    test_dataset= DatasetGender(hp.data.root_test,hp)
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=True)
 
-    model = get_model(hp).to(device)
-
-    if not args.chkpt == None : 
-        print('NOTE::Loading pre-trained model : '+ args.chkpt)
-        model.load_state_dict(torch.load(args.chkpt, map_location=device))
+    ## Loss
+    req_clean_spec = False
     if hp.loss.type == "wSDRLoss" : 
         criterion = wSDRLoss
     elif hp.loss.type == "mwMSELoss":
         criterion = mwMSELoss
+        req_clean_spec = True
+    elif hp.loss.type == "MSELoss":
+        criterion = torch.nn.MSELoss()
+        req_clean_spec = True
+    elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
+        criterion = [mwMSELoss, wSDRLoss]
+        req_clean_spec = True
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
+
+    ##  Dataset
+    if hp.task == "Gender" : 
+        train_dataset = DatasetGender(hp.data.root_train,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
+        test_dataset= DatasetGender(hp.data.root_test,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
+    elif hp.task == "SPEAR" : 
+        train_dataset = DatasetSPEAR(hp,is_train=True)
+        test_dataset  = DatasetSPEAR(hp,is_train=False)
+    else :
+        raise Exception("ERROR::Unknown task : {}".format(hp.task))
+
+    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=True)
+
+    model = get_model(hp,device=device)
+
+    if not args.chkpt == None : 
+        print('NOTE::Loading pre-trained model : '+ args.chkpt)
+        try : 
+            model.load_state_dict(torch.load(args.chkpt, map_location=device)["model"])
+        except KeyError :
+            model.load_state_dict(torch.load(args.chkpt, map_location=device))
 
     optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.adam)
 
@@ -82,29 +104,35 @@ if __name__ == '__main__':
                 max_lr = hp.scheduler.oneCycle.max_lr,
                 epochs=hp.train.epoch,
                 steps_per_epoch = len(train_loader)
-                )
+          )
     else :
         raise Exception("Unsupported sceduler type")
 
     step = args.step
+
+    cnt_log = 0
+
+    print("len dataset : {}".format(len(train_dataset)))
+    print("len dataset : {}".format(len(test_dataset)))
 
     for epoch in range(num_epochs):
         ### TRAIN ####
         model.train()
         train_loss=0
         for i, data in enumerate(train_loader):
-            step +=data["input"].shape[0]
+            step +=data[list(data.keys())[0]].shape[0]
 
             loss = run(hp,data,model,criterion,device=device)
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             train_loss += loss.item()
-           
 
-            if step %  hp.train.summary_interval == 0:
+            if cnt_log %  hp.train.summary_interval == 0:
                 print('TRAIN::{} : Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version,epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
                 writer.log_value(loss,step,'train loss : '+hp.loss.type)
+            cnt_log +=1
+
 
         train_loss = train_loss/len(train_loader)
         torch.save(model.state_dict(), str(modelsave_path)+'/lastmodel.pt')
@@ -114,32 +142,44 @@ if __name__ == '__main__':
         with torch.no_grad():
             test_loss =0.
             for j, (data) in enumerate(test_loader):
-                estim_spec, loss = run(hp,data,model,criterion,ret_output=True,device=device)
+                loss = run(hp,data,model,criterion,ret_output=
+                False,device=device)
                 test_loss += loss.item()
 
             print('TEST::{} :  Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version, epoch+1, num_epochs, j+1, len(test_loader), loss.item()))
 
             test_loss = test_loss/len(test_loader)
             scheduler.step(test_loss)
-            
-            writer.log_value(test_loss,step,'test lost : ' + hp.loss.type)
-            writer.log_spec(torch.abs(torch.stft(data["noisy_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"noisy",step)
-            writer.log_spec(torch.abs(estim_spec[0,0]),"estim",step)
-            writer.log_spec(torch.abs(torch.stft(data["clean_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"clean",step)
 
-            clean_wav = data["clean_wav"][0].cpu().detach().numpy()
-            noisy_wav = data["noisy_wav"][0].cpu().detach().numpy()
-
-            writer.log_audio(clean_wav,"clean",step,sr=hp.data.sr)
-            writer.log_audio(noisy_wav,"noisy",step,sr=hp.data.sr)
-
-            estim_wav = torch.istft(estim_spec[0,0],n_fft = hp.data.n_fft)
+            estim_spec,loss= run(hp,data,model,criterion,ret_output=
+            True,device=device)
 
 
-            estim_wav = estim_wav/torch.max(torch.abs(estim_wav))
-            estim_wav = estim_wav.cpu().detach().numpy()
+            writer.log_value(test_loss,step,'test loss : ' + hp.loss.type)
 
-            writer.log_audio(estim_wav,"estim",step,sr=hp.data.sr)
+            if hp.log.plot_wav : 
+                estim_wav = torch.istft(estim_spec[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
+
+
+                clean_wav = data["clean_wav"][0].cpu().detach().numpy()
+                noisy_wav = data["noisy_wav"][0].cpu().detach().numpy()
+
+                writer.log_audio(clean_wav,"clean",step,sr=hp.data.sr)
+                writer.log_audio(noisy_wav,"noisy",step,sr=hp.data.sr)
+
+                estim_wav = torch.istft(estim_spec[0,0],n_fft = hp.data.n_fft)
+
+                estim_wav = estim_wav/torch.max(torch.abs(estim_wav))
+                estim_wav = estim_wav.cpu().detach().numpy()
+
+                writer.log_audio(estim_wav,"estim",step,sr=hp.data.sr)
+
+            if hp.log.plot_spec : 
+                
+                writer.log_spec(torch.abs(torch.stft(data["noisy_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"noisy",step)
+                writer.log_spec(torch.abs(estim_spec[0,0]),"estim",step)
+                writer.log_spec(torch.abs(torch.stft(data["clean_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"clean",step)
+
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')

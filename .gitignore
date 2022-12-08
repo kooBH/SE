@@ -130,3 +130,6 @@ dmypy.json
 
 # private
 config
+
+*.tar
+*.wav

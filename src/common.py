@@ -3,9 +3,9 @@ import torch.nn
 
 from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet
+from FSN.FullSubNet_Plus import FullSubNet_Plus
 
-def get_model(hp):
-
+def get_model(hp,device):
     if hp.model.mag_only : 
         c_in = 1
         c_out = 1
@@ -17,7 +17,9 @@ def get_model(hp):
         model = UNet(
         ).to(device)
     elif hp.model.type == "ResUNetOnFreq" :
-        model = ResUNetOnFreq(c_in=c_in,c_out=c_out,n_fft=hp.data.n_fft,n_block=4).to(device)
+        model = ResUNetOnFreq(c_in=c_in,c_out=c_out,n_fft=hp.audio.n_fft,n_block=5).to(device)
+    elif hp.model.type == "FullSubNetPlus" : 
+        model = FullSubNet_Plus(num_freqs = hp.model.n_freq).to(device)
 
     return model
 
@@ -29,28 +31,51 @@ def run(
     ret_output=False,
     device="cuda:0"
     ): 
-    feature = data["input"].to(device)
-    mask = model(feature)
 
-    # masking
-    if hp.model.mag_only : 
-        noisy_phase = data["noisy_phase"].to(device)
-        estim_mag = feature*mask
-        estim_spec = estim_mag * (noisy_phase*1j).to(device)
-    else :
-        estim_spec = mask * feature
-        estim_spec = estim_spec[:,0:1,:,:]+estim_spec[:,1:2,:,:]*1j
+    if hp.model.type == "FullSubNetPlus":
+        data["input"][0]=data["input"][0].to(device)
+        data["input"][1]=data["input"][1].to(device)
+        data["input"][2]=data["input"][2].to(device)
+        feature = data["input"]
+        mask = model(feature[0],feature[1],feature[2])
+        estim= model.output(mask,feature[1],feature[2])
+    elif hp.model.type == "ResUNetOnFreq" : 
+        feature = data["noisy_mag"].to(device)
+        mask = model(feature)
+        estim= model.output(mask,feature)
 
     if criterion is None : 
-        return estim_spec
+        return estim
 
     if hp.loss.type =="wSDRLoss" :
-        estim_wav = torch.istft(estim_spec[:,0,:,:],n_fft = hp.data.n_fft)
+        estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
+
         loss = criterion(estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
+
+
     elif hp.loss.type == "mwMSELoss" : 
-        loss = criterion(estim_spec,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device)
+        loss = criterion(estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device)
+    elif hp.loss.type== "MSELoss":
+        loss = criterion(estim,data["clean_mag"].to(device))
+    elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
+        estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
+
+        loss = criterion[0](estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device) + criterion[1](estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
 
     if ret_output :
-        return estim_spec, loss
+        return estim, loss
     else : 
         return loss
+
+###### from audio_zen.acoustics.feature
+def mag_phase(complex_tensor):
+    return torch.abs(complex_tensor), torch.angle(complex_tensor)
+
+def MRI(X):
+    mag, _ = mag_phase(X)
+    mag = mag.unsqueeze(0)
+    real = (X.real).unsqueeze(0)
+    imag = (X.imag).unsqueeze(0)
+
+    return mag.float(),real.float(),imag.float()
+

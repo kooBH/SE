@@ -13,7 +13,7 @@ from utils.hparams import HParam
 from UNet.ResUNet import ResUNetOnFreq, ResUNet
 from UNet.UNet import UNet
 
-
+import common
 from common import run,get_model
 
 if __name__ == '__main__':
@@ -46,24 +46,27 @@ if __name__ == '__main__':
     torch.cuda.set_device(device)
     mono = args.mono
 
+    print("sr : {}".format(hp.data.sr))
+
     batch_size = 1
     num_workers = 1
 
     ## load
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
 
-
-
     model = get_model(hp).to(device)
 
     if not args.chkpt == None : 
         print('NOTE::Loading pre-trained model : '+ args.chkpt)
-        model.load_state_dict(torch.load(args.chkpt, map_location=device))
+        #model.load_state_dict(torch.load(args.chkpt, map_location=device)["model"])
+        chkpt =  torch.load(args.chkpt, map_location=device)
+        if "model" in chkpt : 
+            model.load_state_dict(chkpt["model"])
+        else : 
+            model.load_state_dict(chkpt)
 
-    if mono : 
-        n_channel = 1
-    else :
-        n_channel = 7
+    if hp.model.type_input == "MRI" : 
+        func_feat = common.MRI
 
     #### EVAL ####
     model.eval()
@@ -81,46 +84,33 @@ if __name__ == '__main__':
             else :
                 name_item = path.split('/')[-1]
 
-
             noisy_wav, _ = librosa.load(path,sr=hp.data.sr,mono=mono)
-
             noisy_wav = torch.from_numpy(noisy_wav)
-            noisy_spec =  torch.stft(noisy_wav,n_fft=hp.data.n_fft,return_complex=True,center=True)
+
+
+            noisy_spec =  torch.stft(noisy_wav,n_fft=hp.data.n_fft,return_complex=True,center=True,window=torch.hann_window(hp.data.n_fft),hop_length=hp.data.n_hop).to(device)
 
             len_orig = noisy_spec.shape[-1]
-            need =  int(16*np.floor(len_orig/16)+16) - len_orig
-            noisy_spec = torch.nn.functional.pad(noisy_spec,(0,need))
-
-            if hp.model.mag_only : 
-                noisy_mag = torch.abs(noisy_spec)
-                noisy_phase = torch.angle(noisy_spec)
+            #need =  int(16*np.floor(len_orig/16)+16) - len_orig
+            #noisy_spec = torch.nn.functional.pad(noisy_spec,(0,need))
             
-                noisy_mag = torch.unsqueeze(noisy_mag,dim=0).to(device)
-                if mono : 
-                    noisy_mag = torch.unsqueeze(noisy_mag,dim=0)
-                noisy_phase = torch.unsqueeze(noisy_phase,dim=0)
-                in_feature = noisy_mag
-            else : 
-                in_feature= torch.permute(torch.view_as_real(noisy_spec),(2,0,1))
-                in_feature = torch.unsqueeze(in_feature,dim=0).to(device)
+            #print(noisy_wav.shape)
+            n_channel = noisy_wav.shape[0]
 
             output_wav = []
+            mag,real,imag = func_feat(noisy_spec)
             for i_ch in range(n_channel) : 
-                # TODO fix for multichannel
-                #mask = model(in_feature[:,i_ch:i_ch+1,:,:])[0]
-                mask = model(in_feature[:,:,:,:])[0]
+            #for i_ch in range(1) : 
+                i_mag = torch.unsqueeze(mag[:,i_ch],0)
+                i_real = torch.unsqueeze(real[:,i_ch],0)
+                i_imag = torch.unsqueeze(imag[:,i_ch],0)
+                #print("{} {} {}".format(mag.shape,real.shape,imag.shape))
+                mask = model(i_mag,i_real,i_imag)
 
+                estim_spec = model.output(mask,real,imag)
 
-                # masking
-                if hp.model.mag_only : 
-                    estim_mag = noisy_mag*mask
-                    estim_spec = estim_mag * (noisy_phase*1j).to(device)
-                else :
-                    estim_spec = mask * in_feature
-                    estim_spec = estim_spec[:,0:1,:,:]+estim_spec[:,1:2,:,:]*1j
-
-                # inverse
-                estim_wav = torch.istft(estim_spec[:,0,:,:],n_fft = hp.data.n_fft)
+               # inverse
+                estim_wav = torch.istft(estim_spec[0],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
 
                 output_wav.append(estim_wav[0].cpu().detach().numpy())
 
@@ -130,7 +120,7 @@ if __name__ == '__main__':
             output_wav = np.array(output_wav)
 
             # norm
-            output_wav = output_wav/np.max(np.abs(output_wav))
+            #output_wav = output_wav/np.max(np.abs(output_wav))
 
             if args.DB : 
                 sf.write(os.path.join(args.dir_output,mid_dir_out,"{}".format(name_item)),output_wav.T,hp.data.sr)

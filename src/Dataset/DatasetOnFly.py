@@ -3,28 +3,38 @@ from glob import glob
 import torch
 import librosa
 
-
-class DatasetGender(torch.utils.data.Dataset):
-    def __init__(self,root,hp,sr=8000,n_fft=256):
-        self.list_noisy = glob(os.path.join(root,"**","noisy","*.wav"))
+class DatasetOnFly(torch.utils.data.Dataset):
+    def __init__(self,root_clean,root_noise,hp,sr=8000,n_fft=256):
+        self.list_clean = glob(os.path.join(root,"**","*.wav"),recursive=True)
+        self.list_noise = glob(os.path.join(root,"**","*.wav"),resursive=True)
         self.sr = sr
         self.n_fft = n_fft
         self.hp = hp
+        self.window = torch.hann_window(n_fft)
 
     def __getitem__(self, idx):
-        path_noisy = self.list_noisy[idx]
-        dir_item = path_noisy.split('noisy')[0]
-        name_item = path_noisy.split('/')[-1]
+        path_clean = self.list_clean[idx]
+        dir_item = path_clean.split('noisy')[0]
+        name_item = path_clean.split('/')[-1]
 
-        path_clean = os.path.join(dir_item,"clean",name_item)
+        # rand path
+        idx_noise = np.random.randint(len(self.list_noise))
+        path_noise = self.list_noise[idx_noise]
+        
+        clean = 
+        noise = 
 
-        noisy_wav,_ = librosa.load(path_noisy,sr=self.sr)
-        clean_wav,_ = librosa.load(path_clean,sr=self.sr)
+        # augmentation
+        noisy = 
 
-        noisy_wav = torch.from_numpy(noisy_wav)
-        clean_wav = torch.from_numpy(clean_wav)
 
-        noisy_spec =  torch.stft(noisy_wav,n_fft=self.n_fft,return_complex=True,center=True)
+        noisy_spec =  torch.stft(
+            noisy_wav,
+            n_fft=self.n_fft,
+            return_complex=True,
+            window = self.window,
+            center=True
+        )
 
         data={}
         if self.hp.model.mag_only : 
