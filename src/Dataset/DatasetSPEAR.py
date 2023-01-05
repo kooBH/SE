@@ -26,42 +26,36 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         else :
             train_dev  = "Dev"
         self.train_dev = train_dev
-        self.list_noisy += glob(os.path.join(hp.data.root_noisy,train_dev,"Dataset_2","Microphone_Array_Audio","*","*.wav"))
-        self.list_noisy += glob(os.path.join(hp.data.root_noisy,train_dev,"Dataset_3","Microphone_Array_Audio","*","*.wav"))
-        self.list_noisy += glob(os.path.join(hp.data.root_noisy,train_dev,"Dataset_4","Microphone_Array_Audio","*","*.wav"))
+
+        # ex : /home/data/kbh/SPEAR_seg/Train/noisy
+        self.list_noisy += glob(os.path.join(hp.data.root,train_dev,"noisy","*.wav"))
 
         self.len_data = hp.model.len_sec * hp.data.sr
 
+    @staticmethod
+    def get_feature(wav,hp):
+        data = rs.stft(wav,n_fft=hp.audio.n_fft)
+        #data = np.log(np.abs(data)) + 1e-7
+        data = np.abs(data)
+        data = torch.from_numpy(data)
+        data = torch.unsqueeze(data,0)
+
+        return data
+
     def __getitem__(self, idx):
         ## Path Data
-
-        # ex : /home/data/kbh/SPEAR_INPUT/Train/Dataset_2/Microphone_Array_Audio/Session_1/array_D1_S1_M00.wav
         path_noisy = self.list_noisy[idx]
+        name_noisy = path_noisy.split("/")[-1]
 
-        # Dataset_2
-        dir_dataset = path_noisy.split("/")[-4]
-        # Session_1
-        dir_session = path_noisy.split("/")[-2]
-        # 00
-        id_utt = path_noisy.split("_")[-1][1:3]
+        # ex : /home/data/kbh/SPEAR_seg/Train/clean/Dataset_2_Session_5_01_ch_1_seg_240000.wav
+        id_ch = np.random.randint(2)
+        name_clean = "_".join(name_noisy.split("_")[:6])+"_"+str(id_ch)+"_"+"_".join(name_noisy.split("_")[7:])
 
-        # ex : /home/data/kbh/SPEAR_TARGET/Train/Dataset_2/Reference_Audio/Session_1/00/ref_D2_S1_M00_ID4.wav
-        # ex : /home/data/kbh/SPEAR_TARGET/Train/Dataset_2/Reference_Audio/Session_1/00/ref_D2_S1_M00_ID6.wav
-        
-        list_clean = glob(os.path.join(self.hp.data.root_target,self.train_dev,dir_dataset,"Reference_Audio",dir_session,id_utt,"*.wav"))
+        path_clean = os.path.join(self.hp.data.root,self.train_dev,"clean",name_clean)
 
         ## Load data
-        idx_noisy = np.random.randint(6)
-        idx_clean = np.random.randint(2)
-
-        noisy = rs.load(path_noisy,sr=self.hp.data.sr,mono=False,res_type="fft")[0][idx_noisy,:]
-        clean = None
-
-        for path_clean in list_clean : 
-            if clean is None  : 
-                clean = rs.load(path_clean,sr=self.hp.data.sr,mono=False,res_type="fft")[0][idx_clean,:]
-            else :
-                clean += rs.load(path_clean,sr=self.hp.data.sr,mono=False,res_type="fft")[0][idx_clean,:]
+        noisy = rs.load(path_noisy,sr=self.hp.data.sr)[0]
+        clean = rs.load(path_clean,sr=self.hp.data.sr)[0]
 
         # cut
         idx_start = np.random.randint(len(noisy)-self.len_data)
@@ -69,22 +63,16 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         noisy = noisy[idx_start:idx_start + self.len_data]
         clean = clean[idx_start:idx_start + self.len_data]
 
-        # STFT
-        noisy = rs.stft(noisy,n_fft=self.hp.audio.n_fft)
-        clean = rs.stft(clean,n_fft=self.hp.audio.n_fft)
+        noisy= noisy/(np.max(np.abs(noisy))+1e-7)
+        clean= clean/(np.max(np.abs(clean))+1e-7)
 
-        noisy = np.abs(noisy)
-        clean = np.abs(clean)
-        
-        noisy= torch.from_numpy(noisy)
-        clean= torch.from_numpy(clean)
-
-        noisy = torch.unsqueeze(noisy,0)
-        clean = torch.unsqueeze(clean,0)
+        # fea7re
+        noisy_mag = DatasetSPEAR.get_feature(noisy,self.hp)
+        clean_mag = DatasetSPEAR.get_feature(clean,self.hp)
 
         data={}
-        data["noisy_mag"] = noisy
-        data["clean_mag"] = clean
+        data["noisy_mag"] = noisy_mag
+        data["clean_mag"] = clean_mag
 
         return data
 

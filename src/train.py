@@ -49,9 +49,7 @@ if __name__ == '__main__':
     os.makedirs(modelsave_path,exist_ok=True)
     os.makedirs(log_dir,exist_ok=True)
 
-    writer = MyWriter(hp, log_dir)
-
-
+    writer = MyWriter(log_dir)
 
     ## Loss
     req_clean_spec = False
@@ -154,32 +152,12 @@ if __name__ == '__main__':
             estim_spec,loss= run(hp,data,model,criterion,ret_output=
             True,device=device)
 
-
             writer.log_value(test_loss,step,'test loss : ' + hp.loss.type)
 
-            if hp.log.plot_wav : 
-                estim_wav = torch.istft(estim_spec[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
-
-
-                clean_wav = data["clean_wav"][0].cpu().detach().numpy()
-                noisy_wav = data["noisy_wav"][0].cpu().detach().numpy()
-
-                writer.log_audio(clean_wav,"clean",step,sr=hp.data.sr)
-                writer.log_audio(noisy_wav,"noisy",step,sr=hp.data.sr)
-
-                estim_wav = torch.istft(estim_spec[0,0],n_fft = hp.data.n_fft)
-
-                estim_wav = estim_wav/torch.max(torch.abs(estim_wav))
-                estim_wav = estim_wav.cpu().detach().numpy()
-
-                writer.log_audio(estim_wav,"estim",step,sr=hp.data.sr)
-
             if hp.log.plot_spec : 
-                
-                writer.log_spec(torch.abs(torch.stft(data["noisy_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"noisy",step)
-                writer.log_spec(torch.abs(estim_spec[0,0]),"estim",step)
-                writer.log_spec(torch.abs(torch.stft(data["clean_wav"][0],n_fft=hp.data.n_fft,return_complex=True)),"clean",step)
-
+                writer.log_spec(data["noisy_mag"][0,0],"noisy",step)
+                writer.log_spec(estim_spec[0,0],"estim",step)
+                writer.log_spec(data["clean_mag"][0,0],"clean",step)
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')

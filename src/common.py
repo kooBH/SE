@@ -17,7 +17,7 @@ def get_model(hp,device):
         model = UNet(
         ).to(device)
     elif hp.model.type == "ResUNetOnFreq" :
-        model = ResUNetOnFreq(c_in=c_in,c_out=c_out,n_fft=hp.audio.n_fft,n_block=5).to(device)
+        model = ResUNetOnFreq(c_in=c_in,c_out=c_out,n_fft=hp.audio.n_fft,n_block=5,Softplus_thr=hp.model.Softplus_thr,activation = hp.model.activation).to(device)
     elif hp.model.type == "FullSubNetPlus" : 
         model = FullSubNet_Plus(num_freqs = hp.model.n_freq).to(device)
 
@@ -48,6 +48,7 @@ def run(
         return estim
 
     if hp.loss.type =="wSDRLoss" :
+        mag,phase = rs.magphase(data["noisy_wav"])
         estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
 
         loss = criterion(estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
@@ -61,6 +62,14 @@ def run(
         estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
 
         loss = criterion[0](estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device) + criterion[1](estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
+
+    if loss.isinf().any() : 
+        import pdb
+        pdb.set_trace()
+
+    if loss.isnan().any() : 
+        import pdb
+        pdb.set_trace()
 
     if ret_output :
         return estim, loss
