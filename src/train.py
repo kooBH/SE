@@ -110,6 +110,8 @@ if __name__ == '__main__':
 
     cnt_log = 0
 
+    scaler = torch.cuda.amp.GradScaler()
+
     print("len dataset : {}".format(len(train_dataset)))
     print("len dataset : {}".format(len(test_dataset)))
 
@@ -119,11 +121,16 @@ if __name__ == '__main__':
         train_loss=0
         for i, data in enumerate(train_loader):
             step +=data[list(data.keys())[0]].shape[0]
-
-            loss = run(hp,data,model,criterion,device=device)
+            with torch.cuda.amp.autocast():
+                loss = run(hp,data,model,criterion,device=device)
             optimizer.zero_grad()
-            loss.backward()
-            optimizer.step()
+
+            scaler.scale(loss).backward()
+            #loss.backward()
+            scaler.step(optimizer)
+            #optimizer.step()
+            scaler.update()
+
             train_loss += loss.item()
 
             if cnt_log %  hp.train.summary_interval == 0:
@@ -155,9 +162,14 @@ if __name__ == '__main__':
             writer.log_value(test_loss,step,'test loss : ' + hp.loss.type)
 
             if hp.log.plot_spec : 
-                writer.log_spec(data["noisy_mag"][0,0],"noisy",step)
-                writer.log_spec(estim_spec[0,0],"estim",step)
-                writer.log_spec(data["clean_mag"][0,0],"clean",step)
+                if hp.model.mag_only : 
+                    writer.log_spec(data["noisy"][0,0],"noisy",step)
+                    writer.log_spec(estim_spec[0,0],"estim",step)
+                    writer.log_spec(data["clean"][0,0],"clean",step)
+                else :
+                    writer.log_spec(data["noisy"][0,:],"noisy",step)
+                    writer.log_spec(estim_spec[0,:],"estim",step)
+                    writer.log_spec(data["clean"][0,:],"clean",step)
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')

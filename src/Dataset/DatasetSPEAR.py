@@ -36,9 +36,15 @@ class DatasetSPEAR(torch.utils.data.Dataset):
     def get_feature(wav,hp):
         data = rs.stft(wav,n_fft=hp.audio.n_fft)
         #data = np.log(np.abs(data)) + 1e-7
-        data = np.abs(data)
-        data = torch.from_numpy(data)
-        data = torch.unsqueeze(data,0)
+        if hp.model.mag_only : 
+            # [F.T]
+            data = np.abs(data)
+            data = torch.from_numpy(data)
+            data = torch.unsqueeze(data,0)
+        else : 
+            # [2, F ,T]
+            data = np.stack((data.real,data.imag))
+            data = torch.from_numpy(data)
 
         return data
 
@@ -67,12 +73,12 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         clean= clean/(np.max(np.abs(clean))+1e-7)
 
         # fea7re
-        noisy_mag = DatasetSPEAR.get_feature(noisy,self.hp)
-        clean_mag = DatasetSPEAR.get_feature(clean,self.hp)
+        noisy= DatasetSPEAR.get_feature(noisy,self.hp)
+        clean= DatasetSPEAR.get_feature(clean,self.hp)
 
         data={}
-        data["noisy_mag"] = noisy_mag
-        data["clean_mag"] = clean_mag
+        data["noisy"] = noisy
+        data["clean"] = clean
 
         return data
 

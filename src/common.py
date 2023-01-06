@@ -40,7 +40,7 @@ def run(
         mask = model(feature[0],feature[1],feature[2])
         estim= model.output(mask,feature[1],feature[2])
     elif hp.model.type == "ResUNetOnFreq" : 
-        feature = data["noisy_mag"].to(device)
+        feature = data["noisy"].to(device)
         mask = model(feature)
         estim= model.output(mask,feature)
 
@@ -57,7 +57,7 @@ def run(
     elif hp.loss.type == "mwMSELoss" : 
         loss = criterion(estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device)
     elif hp.loss.type== "MSELoss":
-        loss = criterion(estim,data["clean_mag"].to(device))
+        loss = criterion(estim,data["clean"].to(device))
     elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
         estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
 
