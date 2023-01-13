@@ -24,13 +24,11 @@ def mag_domain(hp,wav,enhanced_mag):
     enhanced_mag = enhanced_mag.detach().cpu().numpy()
     spec = rs.stft(wav,n_fft=hp.audio.n_fft)
     mag,phase = rs.magphase(spec)
-    estim_spec = enhanced_mag * phase
 
-    estim = rs.istft(wav,n_fft=hp.audio.n_fft)
-    return estim
+    estim_spec = enhanced_mag * np.exp(np.angle(phase)*1j)
 
-
-
+    wav = rs.istft(estim_spec,n_fft=hp.audio.n_fft)
+    return wav
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -44,6 +42,7 @@ if __name__ == '__main__':
     parser.add_argument('--mono', action=argparse.BooleanOptionalAction)
     parser.add_argument('--device','-d',type=str,required=False,default="cuda:0")
     parser.add_argument('--dir_input','-i',type=str,required=True)
+    parser.add_argument('--dir_cdr',type=str,default=None)
     parser.add_argument('--dir_output','-o',type=str,required=True)
     args = parser.parse_args()
 
@@ -63,6 +62,8 @@ if __name__ == '__main__':
 
     print("sr : {}".format(hp.data.sr))
     print("mono : {}".format(mono))
+    print("mag : {}".format(hp.model.mag_only))
+    print("cdr: {}".format(hp.model.use_cdr))
 
     batch_size = 1
     num_workers = 1
@@ -94,25 +95,45 @@ if __name__ == '__main__':
             name_item = path.split('/')[-1]
 
             noisy_wav, _ = rs.load(path,sr=hp.data.sr,mono=mono)
-            if len(noisy_wav.shape) == 1 :
-                noisy_wav = np.expand_dims(noisy_wav,0)
+            # norm
+
+            if hp.model.normalize : 
+                noisy_wav = noisy_wav/np.max(np.abs(noisy_wav)+1e-7)
+
             data = dataset.get_feature(noisy_wav,hp).to(device)
+
+            if hp.model.use_cdr :
+                name_noisy = path.split("/")[-1]
+                path_cdr = os.path.join(args.dir_cdr,name_noisy)
+                cdr, _ = rs.load(path_cdr,sr=hp.data.sr,mono=True)
+
+                if hp.model.normalize : 
+                    cdr = cdr/(np.max(np.abs(cdr))+1e-7)
+                cdr = dataset.get_feature(cdr,hp).to(device)
+                data = torch.cat((data,cdr),0)
 
             n_channel = data.shape[1]
 
             estim = None
-            for i_ch in range(n_channel) : 
-                # [B C F T]
-                mask = model(data[:,i_ch:i_ch+1,:,:])
-                if estim is None : 
-                    estim  = model.output(mask,data[:,i_ch:i_ch+1,:,:])[0]
-                else :
-                    estim  = torch.cat((estim,model.output(mask,data[:,i_ch:i_ch+1,:,:])[0]),0)
+
+            data = torch.unsqueeze(data,0)
+
+            # [B C F T]
+            mask = model(data[:,:,:,:])
+            if estim is None : 
+                estim  = model.output(mask,data[:,:,:,:])[0]
+            else :
+                estim  = torch.cat((estim,model.output(mask,data[:,:,:,:])[0]),0)
 
             name_target = path.split('/')[-1]
             id_target = name_target.split('.')[0]
 
-            output_wav= mag_domain(hp,noisy_wav,estim)
+            if hp.model.mag_only : 
+                output_wav= mag_domain(hp,noisy_wav,estim[0])
+            else :
+                estim = estim.detach().cpu().numpy()
+                estim = estim[0] + estim[1]*1j
+                output_wav  = rs.istft(estim,n_fft=hp.audio.n_fft)
 
             sf.write(os.path.join(args.dir_output,"{}".format(name_item)),output_wav.T,hp.data.sr)
 

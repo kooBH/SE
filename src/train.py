@@ -78,7 +78,7 @@ if __name__ == '__main__':
         raise Exception("ERROR::Unknown task : {}".format(hp.task))
 
     train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=False,num_workers=num_workers,pin_memory=True)
+    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
 
     model = get_model(hp,device=device)
 
@@ -107,11 +107,9 @@ if __name__ == '__main__':
         raise Exception("Unsupported sceduler type")
 
     step = args.step
-
     cnt_log = 0
 
     scaler = torch.cuda.amp.GradScaler()
-
     print("len dataset : {}".format(len(train_dataset)))
     print("len dataset : {}".format(len(test_dataset)))
 
@@ -119,6 +117,7 @@ if __name__ == '__main__':
         ### TRAIN ####
         model.train()
         train_loss=0
+        log_loss = 0
         for i, data in enumerate(train_loader):
             step +=data[list(data.keys())[0]].shape[0]
             with torch.cuda.amp.autocast():
@@ -132,12 +131,16 @@ if __name__ == '__main__':
             scaler.update()
 
             train_loss += loss.item()
+            log_loss += loss.item()
 
             if cnt_log %  hp.train.summary_interval == 0:
-                print('TRAIN::{} : Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version,epoch+1, num_epochs, i+1, len(train_loader), loss.item()))
-                writer.log_value(loss,step,'train loss : '+hp.loss.type)
-            cnt_log +=1
+                log_loss /= max(cnt_log,1)
+                print('TRAIN::{} : Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version,epoch+1, num_epochs, i+1, len(train_loader), log_loss))
+                writer.log_value(log_loss,step,'train loss : '+hp.loss.type)
 
+                log_loss = 0
+                cnt_log =  0
+            cnt_log +=1
 
         train_loss = train_loss/len(train_loader)
         torch.save(model.state_dict(), str(modelsave_path)+'/lastmodel.pt')
@@ -167,9 +170,9 @@ if __name__ == '__main__':
                     writer.log_spec(estim_spec[0,0],"estim",step)
                     writer.log_spec(data["clean"][0,0],"clean",step)
                 else :
-                    writer.log_spec(data["noisy"][0,:],"noisy",step)
-                    writer.log_spec(estim_spec[0,:],"estim",step)
-                    writer.log_spec(data["clean"][0,:],"clean",step)
+                    writer.log_spec(data["noisy"][0,:2],"noisy",step)
+                    writer.log_spec(estim_spec[0,:2],"estim",step)
+                    writer.log_spec(data["clean"][0,:2],"clean",step)
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')

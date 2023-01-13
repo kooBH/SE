@@ -14,8 +14,6 @@ from multiprocessing import Pool, cpu_count
 import warnings
 warnings.filterwarnings('ignore')
 
-
-
 sr = 16000
 len_sec = 10
 overlap = 0.25
