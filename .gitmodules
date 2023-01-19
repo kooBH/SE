@@ -4,3 +4,6 @@
 [submodule "src/UNet"]
 	path = src/UNet
 	url = https://github.com/kooBH/UNet.git
+[submodule "src/mpSE"]
+	path = src/mpSE
+	url = https://github.com/kooBH/mpSE.git
