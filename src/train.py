@@ -122,6 +122,8 @@ if __name__ == '__main__':
             step +=data[list(data.keys())[0]].shape[0]
             with torch.cuda.amp.autocast():
                 loss = run(hp,data,model,criterion,device=device)
+                if loss is None : 
+                    continue
             optimizer.zero_grad()
 
             scaler.scale(loss).backward()
@@ -152,6 +154,8 @@ if __name__ == '__main__':
             for j, (data) in enumerate(test_loader):
                 loss = run(hp,data,model,criterion,ret_output=
                 False,device=device)
+                if loss is None : 
+                    continue
                 test_loss += loss.item()
 
             print('TEST::{} :  Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version, epoch+1, num_epochs, j+1, len(test_loader), loss.item()))

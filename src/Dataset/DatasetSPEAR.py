@@ -2,15 +2,16 @@ import os
 from glob import glob
 import torch
 import librosa as rs
-import common
 import numpy as np
+import random
 # Due to 'PySoundFile failed. Trying audioread instead' 
 import warnings
+from scipy import signal
 warnings.filterwarnings('ignore')
 
 """
 D1 : real data, talker in data
-D2 : sim data, no talkker in data
+D2 : sim data, no talker in data
 D3 : sim data, no talker in data 
 D4 : sim data, no talker in data
 
@@ -28,6 +29,21 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         self.train_dev = train_dev
 
         self.use_cdr = hp.model.use_cdr
+
+        if hp.data.augment.clean : 
+            self.list_aug_clean = glob(os.path.join(hp.data.augment.root_clean,"**","*.wav"),recursive=True)
+        else  :
+            self.list_aug_clean = None
+        
+        if hp.data.augment.noise : 
+            self.list_aug_noise = glob(os.path.join(hp.data.augment.root_noise,"**","*.wav"),recursive=True)
+        else :
+            self.list_aug_noise = None
+
+        if hp.data.augment.RIR : 
+            self.list_aug_rir = glob(os.path.join(hp.data.augment.root_RIR,"**","*.wav"),recursive=True)
+        else :
+            self.list_aug_rir = None
 
         # ex : /home/data/kbh/SPEAR_seg/Train/noisy/Dataset_1_Session_10_00_4_seg_0.wav
         for i in hp.data.dataset : 
@@ -54,21 +70,27 @@ class DatasetSPEAR(torch.utils.data.Dataset):
 
         return data
 
+    def match_length(self,wav,idx_start=None) : 
+        if len(wav) > self.len_data : 
+            left = len(wav) - self.len_data
+            if idx_start is None :
+                idx_start = np.random.randint(left)
+            wav = wav[idx_start:idx_start+self.len_data]
+        elif len(wav) < self.len_data : 
+            shortage = self.len_data - len(wav) 
+            wav = np.pad(wav,(0,shortage))
+        return wav, idx_start
+
     def __getitem__(self, idx):
         ## Path Data
         path_noisy = self.list_noisy[idx]
         # it should be with out id, there was a mistake
         name_noisy = path_noisy.split("/")[-1]
 
-
-        if self.use_cdr : 
-            # ex : /home/data/kbh/SPEAR_seg/Train/clean/Dataset_2_Session_5_01_ch_1_seg_240000.wav
-            name_clean = name_noisy
-        else : 
-            id_ch = np.random.randint(2)
-            # Dataset_2_Session_10_00_ch_0_seg_120000.wav
-            name_clean = "_".join(name_noisy.split("_")[:6])+"_"+str(id_ch)+"_"+"_".join(name_noisy.split("_")[7:])
-
+        ## SPEAR_seg data
+        id_ch = np.random.randint(2)
+        # Dataset_2_Session_10_00_ch_0_seg_120000.wav
+        name_clean = "_".join(name_noisy.split("_")[:6])+"_"+str(id_ch)+"_"+"_".join(name_noisy.split("_")[7:])
 
         path_clean = os.path.join(self.hp.data.root,self.train_dev,"clean",name_clean)
 
@@ -76,53 +98,55 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         noisy = rs.load(path_noisy,sr=self.hp.data.sr)[0]
         clean = rs.load(path_clean,sr=self.hp.data.sr)[0]
 
-        # cut
-        #idx_start = np.random.randint(len(noisy)-self.len_data)
-
         #noisy = noisy[idx_start:idx_start + self.len_data]
         #clean = clean[idx_start:idx_start + self.len_data]
 
-        if self.hp.model.normalize : 
+        noisy,idx_start = self.match_length(noisy)
+        clean,idx_start = self.match_length(clean,idx_start)
+
+        aug_clean = None
+        if self.hp.data.augment.clean :
+            path_aug = random.sample(self.list_aug_clean,1)[0]
+            aug_clean = rs.load(path_aug,sr=self.hp.data.sr)[0]
+            aug_clean,idx_start = self.match_length(aug_clean)
+            noisy += aug_clean
+            clean += aug_clean
+
+        if self.hp.data.augment.RIR :
+            raise Exception("ERROR::DatasetSPEAR.py::RIR augmentation is not ready...")
+            path_rir = random.sample(self.list_aug_rir,1)[0]
+            aug_rir = rs.load(path_aug,sr=self.hp.data.sr,mono = False)[0]
+            if aug_rir.ndim > 1 : 
+                ch_rir = np.random.randint(aug_rir.shape[0])
+                aug_rir = aug_rir[ch_rir,:]
+
+            clean = signal.fftconvolve(clean, aug_rir)[:len(clean)]
+
+        if self.hp.data.augment.noise :
+            path_aug = random.sample(self.list_aug_noise,1)[0]
+            aug_noise = rs.load(path_aug,sr=self.hp.data.sr)[0]
+            aug_noise,idx_start = self.match_length(aug_noise)
+
+            # SNR
+            SNR = np.random.uniform(self.hp.data.augment.SNR[0],self.hp.data.augment.SNR[1],1)[0]
+            clean_rms = (clean** 2).mean() ** 0.5
+            noise_rms = (aug_noise ** 2).mean() ** 0.5
+            snr_scalar = clean_rms / (10 ** (SNR / 20)) / (noise_rms + 1e-7)
+            aug_noise *= snr_scalar
+
+            noisy += aug_noise
+
+
+
+        # order might matters..
+        if self.hp.model.normalize or self.hp.data.augment.noise:  
             noisy= noisy/(np.max(np.abs(noisy))+1e-7)
             clean= (clean+1e-7)/(np.max(np.abs(clean))+1e-7)
 
-        # pad
-        if len(noisy) < self.len_data : 
-            shortage  = self.len_data - len(noisy)
-            noisy = np.pad(noisy,(0,shortage))
-
-        if len(clean) < self.len_data : 
-            shortage  = self.len_data - len(clean)
-            clean = np.pad(clean,(0,shortage))
-
-        # sample 
-        if len(noisy) > self.len_data :
-            idx_start = np.random.randint(len(noisy)-self.len_data)
-            noisy = noisy[idx_start:idx_start+self.len_data]
-            clean = clean[idx_start:idx_start+self.len_data]
 
         # feature
         noisy= DatasetSPEAR.get_feature(noisy,self.hp)
         clean= DatasetSPEAR.get_feature(clean,self.hp)
-
-
-        if self.use_cdr : 
-            path_cdr = os.path.join(self.hp.data.root,self.train_dev,"cdr",name_clean)
-            cdr = rs.load(path_cdr,sr=self.hp.data.sr)[0]
-
-            if len(cdr) < self.len_data : 
-                shortage  = self.len_data - len(cdr)
-                cdr = np.pad(cdr,(0,shortage))
-            
-            if len(cdr) > self.len_data :
-                idx_start = np.random.randint(len(cdr)-self.len_data)
-                cdr = cdr[idx_start:idx_start+self.len_data]
-
-            #cdr = cdr[idx_start:idx_start + self.len_data]
-            if self.hp.model.normalize : 
-                cdr = cdr/(np.max(np.abs(cdr))+1e-7)
-            cdr = DatasetSPEAR.get_feature(cdr,self.hp)
-            noisy = torch.cat((noisy,cdr),0)
 
         data={}
         data["noisy"] = noisy
@@ -132,3 +156,19 @@ class DatasetSPEAR(torch.utils.data.Dataset):
 
     def __len__(self):
         return len(self.list_noisy)
+
+
+
+## DEV
+if __name__ == "__main__" : 
+    import sys
+    sys.path.append("./")
+    from utils.hparams import HParam
+    hp = HParam("../config/SPEAR/v20.yaml","../config/SPEAR/default.yaml")
+    db = DatasetSPEAR(hp,is_train=False)
+
+    db[0]
+
+
+
+

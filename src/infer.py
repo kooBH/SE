@@ -30,6 +30,31 @@ def mag_domain(hp,wav,enhanced_mag):
     wav = rs.istft(estim_spec,n_fft=hp.audio.n_fft)
     return wav
 
+def infer(model,data,input, hp):
+    n_channel = data.shape[1]
+
+    estim = None
+
+    data = torch.unsqueeze(data,0)
+
+    # [B C F T]
+    mask = model(data[:,:,:,:])
+    if estim is None : 
+        estim  = model.output(mask,data[:,:,:,:])[0]
+    else :
+        estim  = torch.cat((estim,model.output(mask,data[:,:,:,:])[0]),0)
+
+
+    if hp.model.mag_only : 
+        output_wav= mag_domain(hp,input,estim[0])
+
+    else :
+        estim = estim.detach().cpu().numpy()
+        estim = estim[0] + estim[1]*1j
+        output_wav  = rs.istft(estim,n_fft=hp.audio.n_fft)
+
+    return output_wav
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, required=True,
@@ -42,7 +67,6 @@ if __name__ == '__main__':
     parser.add_argument('--mono', action=argparse.BooleanOptionalAction)
     parser.add_argument('--device','-d',type=str,required=False,default="cuda:0")
     parser.add_argument('--dir_input','-i',type=str,required=True)
-    parser.add_argument('--dir_cdr',type=str,default=None)
     parser.add_argument('--dir_output','-o',type=str,required=True)
     args = parser.parse_args()
 
@@ -50,7 +74,7 @@ if __name__ == '__main__':
     print("NOTE::Loading configuration : "+args.config)
 
     os.makedirs(args.dir_output,exist_ok=True)
-    list_target = [x for x in glob.glob(os.path.join(args.dir_input,"*.wav"))]
+    list_target = [x for x in glob.glob(os.path.join(args.dir_input,"**","*.wav"),recursive=True)]
 
     device = args.device
     version = args.version_name
@@ -59,11 +83,13 @@ if __name__ == '__main__':
 
     if mono is None :
         mono = False
+    if hp.model.use_cdr : 
+        print("ERROR::no CDR")
+        exit(-1)
 
     print("sr : {}".format(hp.data.sr))
     print("mono : {}".format(mono))
     print("mag : {}".format(hp.model.mag_only))
-    print("cdr: {}".format(hp.model.use_cdr))
 
     batch_size = 1
     num_workers = 1
@@ -91,49 +117,37 @@ if __name__ == '__main__':
         for path in tqdm(list_target) : 
 
             # Path Management
-
             name_item = path.split('/')[-1]
-
-            noisy_wav, _ = rs.load(path,sr=hp.data.sr,mono=mono)
-            # norm
-
-            if hp.model.normalize : 
-                noisy_wav = noisy_wav/np.max(np.abs(noisy_wav)+1e-7)
-
-            data = dataset.get_feature(noisy_wav,hp).to(device)
-
-            if hp.model.use_cdr :
-                name_noisy = path.split("/")[-1]
-                path_cdr = os.path.join(args.dir_cdr,name_noisy)
-                cdr, _ = rs.load(path_cdr,sr=hp.data.sr,mono=True)
-
-                if hp.model.normalize : 
-                    cdr = cdr/(np.max(np.abs(cdr))+1e-7)
-                cdr = dataset.get_feature(cdr,hp).to(device)
-                data = torch.cat((data,cdr),0)
-
-            n_channel = data.shape[1]
-
-            estim = None
-
-            data = torch.unsqueeze(data,0)
-
-            # [B C F T]
-            mask = model(data[:,:,:,:])
-            if estim is None : 
-                estim  = model.output(mask,data[:,:,:,:])[0]
-            else :
-                estim  = torch.cat((estim,model.output(mask,data[:,:,:,:])[0]),0)
-
             name_target = path.split('/')[-1]
             id_target = name_target.split('.')[0]
 
-            if hp.model.mag_only : 
-                output_wav= mag_domain(hp,noisy_wav,estim[0])
-            else :
-                estim = estim.detach().cpu().numpy()
-                estim = estim[0] + estim[1]*1j
-                output_wav  = rs.istft(estim,n_fft=hp.audio.n_fft)
+            path_after_root = path.split(args.dir_input)[1]
 
-            sf.write(os.path.join(args.dir_output,"{}".format(name_item)),output_wav.T,hp.data.sr)
+            path_before_name = path_after_root.split(name_item)[0]
+
+            ## see : https://docs.python.org/3/library/os.path.html#os.path.join
+            if path_before_name == "/" : 
+                path_before_name = ""
+
+            noisy_wav, _ = rs.load(path,sr=hp.data.sr,mono=mono)
+            #print("input {} | {}".format(path,noisy_wav.shape))
+
+            # norm
+            if hp.model.normalize : 
+                noisy_wav = noisy_wav/np.max(np.abs(noisy_wav)+1e-7)
+
+            if len(noisy_wav.shape)==1 or mono : 
+                data = dataset.get_feature(noisy_wav,hp).to(device)
+                output_wav = infer(model,data,noisy_wav,hp)
+            else :
+                output_wav = []
+                for ch in range(noisy_wav.shape[0]) : 
+                    data = dataset.get_feature(noisy_wav[ch],hp).to(device)
+                    output_wav.append(infer(model,data,noisy_wav[ch],hp))
+                output_wav = np.array(output_wav)
+
+            os.makedirs(os.path.join(args.dir_output,path_before_name),exist_ok=True)  
+
+
+            sf.write(os.path.join(args.dir_output,path_before_name,"{}".format(name_item)),output_wav.T,hp.data.sr)
 

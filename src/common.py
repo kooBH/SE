@@ -2,7 +2,7 @@ import torch
 import torch.nn
 
 from UNet.UNet import UNet
-from UNet.ResUNet import ResUNetOnFreq, ResUNet
+from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2, ResUNetOnFreq3
 from FSN.FullSubNet_Plus import FullSubNet_Plus
 
 def get_model(hp,device):
@@ -21,6 +21,28 @@ def get_model(hp,device):
         ).to(device)
     elif hp.model.type == "ResUNetOnFreq" :
         model = ResUNetOnFreq(
+            c_in=c_in,
+            c_out=c_out,
+            n_fft=hp.audio.n_fft,
+            n_block=5,
+            norm = hp.model.norm,
+            Softplus_thr=hp.model.Softplus_thr,
+            activation = hp.model.activation,
+            dropout = hp.model.dropout
+            ).to(device)
+    elif hp.model.type == "ResUNetOnFreq2" :
+        model = ResUNetOnFreq2(
+            c_in=c_in,
+            c_out=c_out,
+            n_fft=hp.audio.n_fft,
+            n_block=5,
+            norm = hp.model.norm,
+            Softplus_thr=hp.model.Softplus_thr,
+            activation = hp.model.activation,
+            dropout = hp.model.dropout
+            ).to(device)
+    elif hp.model.type == "ResUNetOnFreq3" :
+        model = ResUNetOnFreq2(
             c_in=c_in,
             c_out=c_out,
             n_fft=hp.audio.n_fft,
@@ -52,6 +74,14 @@ def run(
         mask = model(feature[0],feature[1],feature[2])
         estim= model.output(mask,feature[1],feature[2])
     elif hp.model.type == "ResUNetOnFreq" : 
+        feature = data["noisy"].to(device)
+        mask = model(feature)
+        estim= model.output(mask,feature)
+    elif hp.model.type == "ResUNetOnFreq2" : 
+        feature = data["noisy"].to(device)
+        mask = model(feature)
+        estim= model.output(mask,feature)
+    elif hp.model.type == "ResUNetOnFreq3" : 
         feature = data["noisy"].to(device)
         mask = model(feature)
         estim= model.output(mask,feature)
@@ -91,11 +121,11 @@ def run(
 
     if loss.isinf().any() : 
         print("Warning::There is inf in loss, nan_to_num(1e-7)")
-        loss = torch.nan_to_num(loss,nan=1e-7)
+        loss = None
 
     if loss.isnan().any() : 
         print("Warning::There is nan in loss, nan_to_num(1e-7)")
-        loss = torch.nan_to_num(loss,nan=1e-7)
+        loss = None
 
     if ret_output :
         return estim, loss
