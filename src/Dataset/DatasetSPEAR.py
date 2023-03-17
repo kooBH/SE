@@ -59,6 +59,8 @@ class DatasetSPEAR(torch.utils.data.Dataset):
         if hp.model.mag_only : 
             # [F.T]
             data = np.abs(data)
+            if hp.model.dB : 
+                data = 10*np.log10(data+1e-7)
             data = torch.from_numpy(data)
         else : 
             # [2, F ,T]
@@ -80,6 +82,14 @@ class DatasetSPEAR(torch.utils.data.Dataset):
             shortage = self.len_data - len(wav) 
             wav = np.pad(wav,(0,shortage))
         return wav, idx_start
+
+
+    @staticmethod
+    def tailor_dB_FS(y, target_dB_FS, eps=1e-6):
+        rms = np.sqrt(np.mean(y ** 2))
+        scalar = 10 ** (target_dB_FS / 20) / (rms + eps)
+        y *= scalar
+        return y
 
     def __getitem__(self, idx):
         ## Path Data
@@ -136,21 +146,26 @@ class DatasetSPEAR(torch.utils.data.Dataset):
 
             noisy += aug_noise
 
-
-
-        # order might matters..
-        if self.hp.model.normalize or self.hp.data.augment.noise:  
+        if self.hp.model.normalize :  
             noisy= noisy/(np.max(np.abs(noisy))+1e-7)
             clean= (clean+1e-7)/(np.max(np.abs(clean))+1e-7)
 
+        elif self.hp.data.augment.noise : 
+            dBFS_clean = np.random.uniform(self.hp.data.augment.dBFS,1)[0]
+            dBFS_noisy = np.random.uniform(self.hp.data.augment.dBFS,1)[0]
+            noisy = DatasetSPEAR.tailor_dB_FS(noisy,dBFS_noisy)
+            clean = DatasetSPEAR.tailor_dB_FS(clean,dBFS_clean)
 
         # feature
-        noisy= DatasetSPEAR.get_feature(noisy,self.hp)
-        clean= DatasetSPEAR.get_feature(clean,self.hp)
+        feat_noisy= DatasetSPEAR.get_feature(noisy,self.hp)
+        feat_clean= DatasetSPEAR.get_feature(clean,self.hp)
 
         data={}
-        data["noisy"] = noisy
-        data["clean"] = clean
+        data["noisy"] = feat_noisy
+        data["clean"] = feat_clean
+
+        data["noisy_wav"] = noisy
+        data["clean_wav"] = clean
 
         return data
 

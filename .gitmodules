@@ -7,3 +7,6 @@
 [submodule "src/mpSE"]
 	path = src/mpSE
 	url = https://github.com/kooBH/mpSE.git
+[submodule "src/MTFAA"]
+	path = src/MTFAA
+	url = https://github.com/kooBH/MTFAA.git

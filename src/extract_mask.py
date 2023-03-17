@@ -39,10 +39,6 @@ def infer(model,data,input, hp):
 
     # [B C F T]
     mask = model(data[:,:,:,:])
-
-    if hp.apply.hfft_max < mask.shape[2] :
-        mask[:,:,hp.apply.hfft_max:,:] = hp.apply.floor
-
     if estim is None : 
         estim  = model.output(mask,data[:,:,:,:])[0]
     else :
@@ -156,6 +152,4 @@ if __name__ == '__main__':
             if hp.data.sr != args.sr : 
                 output_wav = rs.resample(output_wav,hp.data.sr,args.sr)
                 sf.write(os.path.join(args.dir_output,path_before_name,"{}".format(name_item)),output_wav.T,args.sr)
-            else :
-                sf.write(os.path.join(args.dir_output,path_before_name,"{}".format(name_item)),output_wav.T,hp.data.sr)
 
