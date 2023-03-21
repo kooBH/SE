@@ -5,6 +5,7 @@ from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2
 from FSN.FullSubNet_Plus import FullSubNet_Plus
 from mpSE.TRUNet import TRUNet
+from MTFAA.MTFAA import MTFAANet
 import librosa as rs
 
 def get_model(hp,device):
@@ -16,8 +17,7 @@ def get_model(hp,device):
         c_out = 2
 
     if hp.model.type == "UNet": 
-        model = UNet(
-        ).to(device)
+        model = UNet().to(device)
     elif hp.model.type == "ResUNetOnFreq" :
         model = ResUNetOnFreq(
             c_in=c_in,
@@ -46,6 +46,8 @@ def get_model(hp,device):
     elif hp.model.type == "TRUMEA" : 
         from mpSE.TRUNet import TRUNet
         model = TRUNet(hp.audio.n_fft,hp.audio.n_hop).to(device)
+    elif hp.model.type == "MTFAA" :
+        model = MTFAANet().to(device)
     else : 
         raise Exception("ERROR::Unknown model type : {}".format(hp.model.type))
 
@@ -80,6 +82,9 @@ def run(
         mask = model(feature)
         estim= model.output(mask,feature)
     elif hp.model.type =="TRUMEA" : 
+        feature = data["noisy"].to(device)
+        estim = model(feature)
+    elif hp.model.type =="MTFAA" : 
         feature = data["noisy"].to(device)
         estim = model(feature)
     else : 
@@ -122,14 +127,18 @@ def run(
         loss = criterion[0](estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device) + criterion[1](estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
     elif hp.loss.type== "TRUNetLoss":
         loss = criterion(estim,data["clean"].to(device))
+    elif hp.loss.type == "LevelInvariantNormalizedLoss":
+        loss = criterion(estim,data["clean"].to(device))
 
     if loss.isinf().any() : 
         print("Warning::There is inf in loss, nan_to_num(1e-7)")
-        loss = None
+        loss = torch.tensor(0.0).to(loss.device)
+        loss.requires_grad_()
 
     if loss.isnan().any() : 
         print("Warning::There is nan in loss, nan_to_num(1e-7)")
-        loss = None
+        loss = torch.tensor(0.0).to(loss.device)
+        loss.requires_grad_()
 
     if ret_output :
         return estim, loss

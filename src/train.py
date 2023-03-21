@@ -13,7 +13,7 @@ from Dataset.DatasetDNS import DatasetDNS
 
 from utils.hparams import HParam
 from utils.writer import MyWriter
-from utils.Loss import wSDRLoss,mwMSELoss
+from utils.Loss import wSDRLoss,mwMSELoss,LevelInvariantNormalizedLoss
 from utils.metric import run_metric
 
 from common import run,get_model
@@ -31,6 +31,8 @@ if __name__ == '__main__':
     parser.add_argument('--device','-d',type=str,required=False,default="cuda:0")
     parser.add_argument('--epoch','-e',type=int,required=False,default=None)
     args = parser.parse_args()
+
+    torch.autograd.set_detect_anomaly(True)
 
     hp = HParam(args.config,args.default)
     print("NOTE::Loading configuration {} based on {}".format(args.config,args.default))
@@ -74,6 +76,9 @@ if __name__ == '__main__':
         from mpSE.loss import TrunetLoss
         criterion = TrunetLoss([4096, 2048, 1024, 512],[1024, 512, 256])
         req_clean_spec = False
+    elif hp.loss.type == "LevelInvariantNormalizedLoss" : 
+        criterion = LevelInvariantNormalizedLoss().to(device)
+
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
 
@@ -152,7 +157,8 @@ if __name__ == '__main__':
             #scaler.scale(loss).backward()
             #scaler.step(optimizer)
             #scaler.update()
-            loss.backward()
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             train_loss += loss.item()
