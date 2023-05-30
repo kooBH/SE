@@ -106,7 +106,7 @@ class DatasetDNS(torch.utils.data.Dataset):
             self.target_dB_FS + self.target_dB_FS_floating_value
         )
 
-        # resacle noisy RMS
+        # rescale noisy RMS
         noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)
         clean *= noisy_scalar
 
@@ -129,7 +129,7 @@ class DatasetDNS(torch.utils.data.Dataset):
         return path_clean
 
     def __getitem__(self, idx):
-
+        
         if self.is_train : 
             # sample clean
             path_clean = random.choice(self.list_clean)

@@ -8,7 +8,7 @@ from mpSE.TRUNet import TRUNet
 from MTFAA.MTFAA import MTFAANet
 import librosa as rs
 
-def get_model(hp,device):
+def get_model(hp,device="cuda:0"):
     if hp.model.mag_only : 
         c_in = 1
         c_out = 1
@@ -45,7 +45,14 @@ def get_model(hp,device):
         model = FullSubNet_Plus(num_freqs = hp.model.n_freq).to(device)
     elif hp.model.type == "TRUMEA" : 
         from mpSE.TRUNet import TRUNet
-        model = TRUNet(hp.audio.n_fft,hp.audio.n_hop).to(device)
+        model = TRUNet(
+            hp.audio.n_fft,
+            hp.audio.n_hop,
+            use_FSABlock=hp.model.use_FSABlock,
+            architecture=hp.model.architecture,
+            kernel_type = hp.model.kernel_type,
+            skipGRU= hp.model.skipGRU
+         ).to(device)
     elif hp.model.type == "MTFAA" :
         model = MTFAANet().to(device)
     else : 

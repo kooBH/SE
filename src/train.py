@@ -107,7 +107,12 @@ if __name__ == '__main__':
         except KeyError :
             model.load_state_dict(torch.load(args.chkpt, map_location=device))
 
-    optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.adam)
+    if hp.train.optimizer == 'Adam' :
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.Adam)
+    elif hp.train.optimizer == 'AdamW' :
+        optimizer = torch.optim.AdamW(model.parameters(), lr=hp.train.AdamW.lr)
+    else :
+        raise Exception("ERROR::Unknown optimizer : {}".format(hp.train.optimizer))
 
     if hp.scheduler.type == 'Plateau': 
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
@@ -133,10 +138,9 @@ if __name__ == '__main__':
     print("len dataset : {}".format(len(train_dataset)))
     print("len dataset : {}".format(len(test_dataset)))
 
+    writer = MyWriter(log_dir)
+
     for epoch in range(num_epochs):
-
-        writer = MyWriter(log_dir)
-
         ### TRAIN ####
         model.train()
         train_loss=0
@@ -157,6 +161,12 @@ if __name__ == '__main__':
             #scaler.scale(loss).backward()
             #scaler.step(optimizer)
             #scaler.update()
+
+            try : 
+                loss.backward()
+            except RuntimeError as e:
+                import pdb
+                pdb.set_trace()
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
@@ -249,4 +259,4 @@ if __name__ == '__main__':
                 key = "{}_with_reverb".format(m)
                 metric[key] /= hp.log.n_eval
                 writer.log_value(metric[key],step,key)
-            writer.close()
+    writer.close()
