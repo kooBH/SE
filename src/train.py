@@ -47,6 +47,7 @@ if __name__ == '__main__':
         num_epochs = hp.train.epoch
     else :
         num_epochs = args.epoch
+    print("num_epochs : {}".format(num_epochs))
     num_workers = hp.train.num_workers
 
     best_loss = 1e7
@@ -76,6 +77,11 @@ if __name__ == '__main__':
         from mpSE.loss import TrunetLoss
         criterion = TrunetLoss([4096, 2048, 1024, 512],[1024, 512, 256])
         req_clean_spec = False
+    elif hp.loss.type == "HybridLoss":
+        from mpSE.loss import HybridLoss
+        criterion = HybridLoss([4096, 2048, 1024, 512],[1024, 512, 256],alpha = hp.loss.HybridLoss.alpha)
+        req_clean_spec = False
+       
     elif hp.loss.type == "LevelInvariantNormalizedLoss" : 
         criterion = LevelInvariantNormalizedLoss().to(device)
 

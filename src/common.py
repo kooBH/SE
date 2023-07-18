@@ -5,17 +5,10 @@ from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2
 from FSN.FullSubNet_Plus import FullSubNet_Plus
 from mpSE.TRUNet import TRUNet
-from MTFAA.MTFAA import MTFAANet
+from MTFAA.MTFAA import MTFAA_helper
 import librosa as rs
 
 def get_model(hp,device="cuda:0"):
-    if hp.model.mag_only : 
-        c_in = 1
-        c_out = 1
-    else :
-        c_in = 2
-        c_out = 2
-
     if hp.model.type == "UNet": 
         model = UNet().to(device)
     elif hp.model.type == "ResUNetOnFreq" :
@@ -51,10 +44,18 @@ def get_model(hp,device="cuda:0"):
             use_FSABlock=hp.model.use_FSABlock,
             architecture=hp.model.architecture,
             kernel_type = hp.model.kernel_type,
-            skipGRU= hp.model.skipGRU
+            skipGRU= hp.model.skipGRU,
+            phase_encoder=hp.model.phase_encoder
          ).to(device)
     elif hp.model.type == "MTFAA" :
-        model = MTFAANet().to(device)
+        model = MTFAA_helper(
+            n_fft = hp.model.n_fft,
+            n_hop = hp.model.n_hop,
+            n_erb = hp.model.n_erb,
+            Co = hp.model.Co,
+            type_encoder = hp.model.type_encoder,
+            type_ASA = hp.model.type_ASA
+        ).to(device)
     else : 
         raise Exception("ERROR::Unknown model type : {}".format(hp.model.type))
 
@@ -132,9 +133,7 @@ def run(
     elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
         estim_wav = torch.istft(estim[:,0,:,:],n_fft = hp.data.n_fft,hop_length=hp.data.n_hop,window=torch.hann_window(hp.data.n_fft).to(device))
         loss = criterion[0](estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device) + criterion[1](estim_wav,data["noisy_wav"].to(device),data["clean_wav"].to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
-    elif hp.loss.type== "TRUNetLoss":
-        loss = criterion(estim,data["clean"].to(device))
-    elif hp.loss.type == "LevelInvariantNormalizedLoss":
+    else :
         loss = criterion(estim,data["clean"].to(device))
 
     if loss.isinf().any() : 

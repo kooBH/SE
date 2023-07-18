@@ -133,3 +133,6 @@ config
 
 *.tar
 *.wav
+
+# tmp
+.fuse*

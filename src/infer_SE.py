@@ -66,11 +66,15 @@ if __name__ == '__main__':
             ## see : https://docs.python.org/3/library/os.path.html#os.path.join
             if path_before_name == "/" : 
                 path_before_name = ""
+            if path_before_name[0] == "/" : 
+                path_before_name = "."+path_before_name
+
 
             noisy_wav, _ = rs.load(path,sr=hp.data.sr)
             noisy_wav = torch.unsqueeze(torch.from_numpy(noisy_wav).float().to(device),0)
             output_wav = model(noisy_wav)
             output_wav = output_wav.detach().cpu().numpy()
+
 
             os.makedirs(os.path.join(args.dir_output,path_before_name),exist_ok=True)  
             sf.write(os.path.join(args.dir_output,path_before_name,"{}".format(name_item)),output_wav.T,hp.data.sr)
