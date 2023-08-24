@@ -1,5 +1,5 @@
 import torch
-import torch.nn
+import torch.nn as nn
 
 from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2
@@ -56,6 +56,8 @@ def get_model(hp,device="cuda:0"):
             type_encoder = hp.model.type_encoder,
             type_ASA = hp.model.type_ASA
         ).to(device)
+    elif hp.model.type =="None":
+        model = nn.Identity()
     else : 
         raise Exception("ERROR::Unknown model type : {}".format(hp.model.type))
 
