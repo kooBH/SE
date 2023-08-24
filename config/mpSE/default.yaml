@@ -73,5 +73,5 @@ log:
   root: '/home/nas/user/kbh/mpSE'
   plot_wav : True
   plot_spec : True
-  eval : ["PESQ","STOI"]
+  eval : ["PESQ","STOI","SNR"]
   n_eval : 30 # the number of files to evaluate
