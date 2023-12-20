@@ -34,7 +34,7 @@ if __name__ == '__main__':
 
     torch.autograd.set_detect_anomaly(True)
 
-    hp = HParam(args.config,args.default)
+    hp = HParam(args.config,args.default,merge_except=["architecture"])
     print("NOTE::Loading configuration {} based on {}".format(args.config,args.default))
     global device
 
@@ -161,6 +161,7 @@ if __name__ == '__main__':
 #            with torch.cuda.amp.autocast():
             loss = run(hp,data,model,criterion,device=device)
             if loss is None : 
+                print("Warning::zero loss")
                 continue
             optimizer.zero_grad()
 
@@ -203,8 +204,6 @@ if __name__ == '__main__':
                     continue
                 test_loss += loss.item()
 
-            if loss is None : 
-                continue
 
             print('TEST::{} :  Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version, epoch+1, num_epochs, j+1, len(test_loader), loss.item()))
 
@@ -256,7 +255,7 @@ if __name__ == '__main__':
                     metric["{}_with_reverb".format(m)] += val_reverb
                     val_no_reverb = run_metric(estim_no_reverb[0],target_no_reverb,m) 
                     metric["{}_no_reverb".format(m)] += val_no_reverb
-                
+
             for m in hp.log.eval : 
                 key = "{}_no_reverb".format(m)
                 metric[key] /= hp.log.n_eval

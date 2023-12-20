@@ -16,12 +16,15 @@ if __name__ == "__main__" :
     parser.add_argument('--chkpt',type=str,required=False,default=None)
     args = parser.parse_args()
 
-    hp = HParam(args.config,args.default)
+    hp = HParam(args.config,args.default,merge_except=["architecture"])
     print("NOTE::Loading configuration : "+args.config)
 
     model = get_model(hp,"cpu")
     model.load_state_dict(torch.load(args.chkpt, map_location="cpu"))
     model.eval()
+
+    n_fft = hp.audio.n_fft
+    n_hop = hp.audio.n_hop
 
     os.makedirs("./chkpt",exist_ok=True)
 
@@ -31,7 +34,11 @@ if __name__ == "__main__" :
     name = hp.model.type + "_" + version
 
     ## tracing
-    input = torch.rand(1,512//2+1,1,2)
+    n_feat = 2
+    if hp.model.use_mag :
+        n_feat = 3
+
+    input = torch.rand(1,n_fft//2+1,1,n_feat)
     """
     traced_model = torch.jit.trace(model, input)
     traced_model.save('./chkpt/rawnet3_traced.pt')

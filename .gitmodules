@@ -10,3 +10,6 @@
 [submodule "src/MTFAA"]
 	path = src/MTFAA
 	url = https://github.com/kooBH/MTFAA.git
+[submodule "src/Lite-RTSE"]
+	path = src/Lite-RTSE
+	url = https://github.com/kooBH/Lite-RTSE.git

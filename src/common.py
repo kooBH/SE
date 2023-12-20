@@ -41,11 +41,12 @@ def get_model(hp,device="cuda:0"):
         model = TRUNet(
             hp.audio.n_fft,
             hp.audio.n_hop,
-            use_FSABlock=hp.model.use_FSABlock,
             architecture=hp.model.architecture,
             kernel_type = hp.model.kernel_type,
             skipGRU= hp.model.skipGRU,
-            phase_encoder=hp.model.phase_encoder
+            phase_encoder=hp.model.phase_encoder,
+            T_FGRU=hp.model.T_FGRU,
+            type_TBlock=hp.model.type_TBlock
          ).to(device)
     elif hp.model.type == "MTFAA" :
         model = MTFAA_helper(

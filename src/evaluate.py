@@ -11,6 +11,8 @@ from Dataset.DatasetDNS import DatasetDNS
 from utils.hparams import HParam
 from utils.metric import run_metric
 
+from tqdm.auto import tqdm
+
 from common import run,get_model
 
 if __name__ == '__main__':
@@ -47,10 +49,7 @@ if __name__ == '__main__':
     os.makedirs(log_dir,exist_ok=True)
 
     ##  Dataset
-    if hp.task == "Gender" : 
-        train_dataset = DatasetGender(hp.data.root_train,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
-        test_dataset= DatasetGender(hp.data.root_test,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
-    elif hp.task == "SPEAR" : 
+    if hp.task == "SPEAR" : 
         train_dataset = DatasetSPEAR(hp,is_train=True)
         test_dataset  = DatasetSPEAR(hp,is_train=False)
     elif hp.task == "DNS":
@@ -58,9 +57,6 @@ if __name__ == '__main__':
         test_dataset  = DatasetDNS(hp,is_train=False)
     else :
         raise Exception("ERROR::Unknown task : {}".format(hp.task))
-
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
 
     model = get_model(hp,device=device)
 
@@ -70,7 +66,6 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(args.chkpt, map_location=device)["model"])
         except KeyError :
             model.load_state_dict(torch.load(args.chkpt, map_location=device))
-
     cnt_log = 0
 
     
@@ -83,7 +78,7 @@ if __name__ == '__main__':
             metric["{}_with_reverb".format(m)] = 0.0
             metric["{}_no_reverb".format(m)] = 0.0
 
-        for i in range(hp.log.n_eval) : 
+        for i in tqdm(range(hp.log.n_eval)) : 
             with_reverb,no_reverb = test_dataset.get_eval(i)
 
             # with_reverb
@@ -113,7 +108,7 @@ if __name__ == '__main__':
             key = "{}_with_reverb".format(m)
             metric[key] /= hp.log.n_eval
 
-    with open("log_{}.txt".format(version)) as f :
+    with open("log_{}.txt".format(version),'w') as f :
         for k in metric.keys():
             f.write("'{}':'{}'\n".format(k, metric[k]))
     
