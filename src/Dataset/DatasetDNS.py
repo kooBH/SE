@@ -32,8 +32,6 @@ class DatasetDNS(torch.utils.data.Dataset):
 
             self.eval["no_reverb"] = glob(join(hp.data.dev.root,"no_reverb","noisy","*.wav"),recursive=True)
 
-
-
         self.range_SNR = hp.data.SNR
         self.target_dB_FS = -25
         self.target_dB_FS_floating_value = 10

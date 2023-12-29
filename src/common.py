@@ -46,7 +46,9 @@ def get_model(hp,device="cuda:0"):
             skipGRU= hp.model.skipGRU,
             phase_encoder=hp.model.phase_encoder,
             T_FGRU=hp.model.T_FGRU,
-            type_TBlock=hp.model.type_TBlock
+            type_TBlock=hp.model.type_TBlock,
+            PLC = hp.model.PLC,
+            PLC_alpha=hp.model.PLC_alpha,
          ).to(device)
     elif hp.model.type == "MTFAA" :
         model = MTFAA_helper(
@@ -72,7 +74,6 @@ def run(
     ret_output=False,
     device="cuda:0"
     ): 
-
     if hp.model.type == "FullSubNetPlus":
         data["input"][0]=data["input"][0].to(device)
         data["input"][1]=data["input"][1].to(device)

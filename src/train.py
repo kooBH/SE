@@ -172,8 +172,12 @@ if __name__ == '__main__':
             try : 
                 loss.backward()
             except RuntimeError as e:
-                import pdb
-                pdb.set_trace()
+                #import pdb
+                #pdb.set_trace()
+                print("RuntimeERror!! : {}".format(e))
+                continue
+
+            
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
