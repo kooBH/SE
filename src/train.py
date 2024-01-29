@@ -2,6 +2,7 @@ import torch
 import argparse
 import torchaudio
 import os
+import glob
 import numpy as np
 import librosa as rs
 
@@ -16,7 +17,8 @@ from utils.writer import MyWriter
 from utils.Loss import wSDRLoss,mwMSELoss,LevelInvariantNormalizedLoss
 from utils.metric import run_metric
 
-from common import run,get_model
+from common import run,get_model, evaluate
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -55,9 +57,11 @@ if __name__ == '__main__':
     ## load
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
     log_dir = hp.log.root+'/'+'log'+'/'+version
+    csv_dir = hp.log.root+"/csv/"
 
     os.makedirs(modelsave_path,exist_ok=True)
     os.makedirs(log_dir,exist_ok=True)
+    os.makedirs(csv_dir,exist_ok=True)
 
 
     ## Loss
@@ -139,6 +143,13 @@ if __name__ == '__main__':
 
     step = args.step
     cnt_log = 0
+
+    ## Eval data load
+    list_eval = []
+    for path_noisy in glob.glob(os.path.join(hp.data.eval.noisy,"*.wav")) : 
+        basename = os.path.basename(path_noisy)
+        path_clean = os.path.join(hp.data.eval.clean,basename)
+        list_eval.append([path_noisy,path_clean])
 
     scaler = torch.cuda.amp.GradScaler()
     print("len dataset : {}".format(len(train_dataset)))
@@ -232,40 +243,19 @@ if __name__ == '__main__':
                 best_loss = test_loss
 
             ## Metric
-            metric = {}
-            for m in hp.log.eval : 
-                metric["{}_with_reverb".format(m)] = 0.0
-                metric["{}_no_reverb".format(m)] = 0.0
-
-            for i in range(hp.log.n_eval) : 
-                with_reverb,no_reverb = test_dataset.get_eval(i)
-
-                # with_reverb
-                noisy_reverb = rs.load(with_reverb[0],sr=hp.data.sr)[0]
-                noisy_reverb = torch.unsqueeze(torch.from_numpy(noisy_reverb),0).to(device)
-                estim_reverb = model(noisy_reverb).cpu().detach().numpy()
-
-                target_reverb = rs.load(with_reverb[1],sr=hp.data.sr)[0]
-
-                # no_reverb
-                noisy_no_reverb = rs.load(no_reverb[0],sr=hp.data.sr)[0]
-                noisy_no_reverb = torch.unsqueeze(torch.from_numpy(noisy_no_reverb),0).to(device)
-                estim_no_reverb = model(noisy_no_reverb).cpu().detach().numpy()
-
-                target_no_reverb = rs.load(no_reverb[1],sr=hp.data.sr)[0]
-
-                for m in hp.log.eval : 
-                    val_reverb = run_metric(estim_reverb[0],target_reverb,m) 
-                    metric["{}_with_reverb".format(m)] += val_reverb
-                    val_no_reverb = run_metric(estim_no_reverb[0],target_no_reverb,m) 
-                    metric["{}_no_reverb".format(m)] += val_no_reverb
-
-            for m in hp.log.eval : 
-                key = "{}_no_reverb".format(m)
-                metric[key] /= hp.log.n_eval
-                writer.log_value(metric[key],step,key)
-
-                key = "{}_with_reverb".format(m)
-                metric[key] /= hp.log.n_eval
-                writer.log_value(metric[key],step,key)
+            metric = evaluate(hp,model,list_eval,device=device)
+            for m in hp.log.dev : 
+                writer.log_value(metric[m],step,m)
     writer.close()
+
+    ## Log for best model
+    model.load_state_dict(torch.load(str(modelsave_path)+'/bestmodel.pt'))
+    metric = evaluate(hp,model,list_eval,device=device)
+
+    with open(str(csv_dir)+"/{}.csv".format(version),'w') as f :
+        for m in hp.log.eval : 
+            f.write("{},".format(m))
+        f.write("\n")
+        for m in hp.log.eval : 
+            f.write("{},".format(metric[m]))
+        f.write("\n")
