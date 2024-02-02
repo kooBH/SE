@@ -51,6 +51,10 @@ def get_model(hp,device="cuda:0"):
             type_TBlock=hp.model.type_TBlock,
             PLC = hp.model.PLC,
             PLC_alpha=hp.model.PLC_alpha,
+            CR_use=hp.model.CR.use,
+            CR_n_band=hp.model.CR.n_band,
+            CR_overlap=hp.model.CR.overlap,
+
          ).to(device)
     elif hp.model.type == "MTFAA" :
         model = MTFAA_helper(
