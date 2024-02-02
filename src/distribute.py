@@ -9,7 +9,7 @@ from utils.metric import run_metric
 import librosa as rs
 
 dir_voice_demand = "/home/data/kbh/Voicebank+Demand"
-dir_dns2020      = "/home/data/kbh/DNS2020/ICASSP_dev_test_set/track_1/synthetic"
+dir_dns2020      = "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
@@ -42,21 +42,10 @@ if __name__ == "__main__" :
 
     list_DNS=[]
     for path_noisy in list_DNS_noisy :
-        # e.g.
-        # synthetic_emotion_1792_snr19_tl-35_fileid_19.wav
-        # -> synthetic_emotion_clean_filed_19.wav
-        #  
-        # synthetic_french_ancientgreek_epigram68-03_train_26209_5_snr16_tl-25_fileid_64.wav
-        # -> synthtic_clean_fileid_64.wav
         token = path_noisy.split("/")[-1]
         token = token.split("_")
         fileid = token[-1].split(".")[0]
-        if token[1] == "emotion" :
-            path_clean = os.path.join(dir_dns2020,"clean","synthetic_emotion_clean_fileid_{}.wav".format(fileid))
-        elif token[1] == "singing" : 
-            path_clean = os.path.join(dir_dns2020,"clean","synthetic_singing_clean_fileid_{}.wav".format(fileid))
-        else :
-            path_clean = os.path.join(dir_dns2020,"clean","synthetic_clean_fileid_{}.wav".format(fileid))
+        path_clean = os.path.join(dir_dns2020,"clean","clean_fileid_{}.wav".format(fileid))
         list_DNS.append((path_noisy,path_clean))
 
     ### ONNX
@@ -86,13 +75,13 @@ if __name__ == "__main__" :
 
     # Eval for DNS2020 dev synthetic no reverb
     print("Eval DNS2020 dev : {}".format(len(list_DNS)))
-    hp.log.eval = ["PESQ","SISDR","STOI","SigMOS"]
+    hp.log.eval = ["PESQ","SISDR","SigMOS","STOI", "PESQ_WB","PESQ_NB"]
     metric_DNS = evaluate(hp,model,list_DNS,"cpu")
 
 
     # Eval for Voice+Demand
     print("Eval Voice+Demand : {}".format(len(list_VD)))
-    hp.log.eval = ["PESQ","SISDR","STOI"]
+    hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
     metric_VD = evaluate(hp,model,list_VD,"cpu")
 
     ### N_PARAM
@@ -100,12 +89,14 @@ if __name__ == "__main__" :
     print("The number of parameters : {:,}".format(n_parameters))
 
     # Flops
-    from fvcore.nn import FlopCountAnalysis
+    #from fvcore.nn import FlopCountAnalysis
+    #flops = FlopCountAnalysis(model.helper, input)
+    #total_flops = flops.total()
 
-    flops = FlopCountAnalysis(model.helper, input)
-    print("--total--")
-    total_flops = flops.total()
-    print('{:,}'.format(total_flops))
+    from thop import profile
+    macs, params = profile(model.helper, inputs=(input,))
+    total_flops = 2*macs
+    print("MACs : {} | Flops : {}".format(macs,total_flops))
 
     with open("./log/"+name+".txt","w") as f :
         f.write("VD : \n")
@@ -114,8 +105,8 @@ if __name__ == "__main__" :
         f.write("DNS : \n")
         for k,v in metric_DNS.items() :
             f.write("{} : {}\n".format(k,v))
-        f.write("N_PARAM : {:,}\n".format(n_parameters))
-        f.write("FLOPS : {:,}\n".format(total_flops))
+        f.write("N_PARAM : {}\n".format(n_parameters))
+        f.write("FLOPS : {}\n".format(total_flops))
 
 
 
