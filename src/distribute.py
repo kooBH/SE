@@ -106,7 +106,8 @@ if __name__ == "__main__" :
         for k,v in metric_DNS.items() :
             f.write("{} : {}\n".format(k,v))
         f.write("N_PARAM : {}\n".format(n_parameters))
-        f.write("FLOPS : {}\n".format(total_flops))
+        f.write("MACs : {}\n".format(macs))
+        f.write("Flops : {}\n".format(total_flops))
 
 
 
