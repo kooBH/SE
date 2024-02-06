@@ -11,6 +11,8 @@ import librosa as rs
 dir_voice_demand = "/home/data/kbh/Voicebank+Demand"
 dir_dns2020      = "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
 
+flag_get_score = True
+
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, required=True,
@@ -62,8 +64,10 @@ if __name__ == "__main__" :
 
     ## tracing
     n_feat = 2 # complex(real,imag)
+    T = 125
 
-    input = torch.rand(1,n_fft//2+1,1,n_feat)
+    #input = torch.rand(1,n_fft//2+1,1,n_feat)
+    input = torch.rand(1,n_fft//2+1,T,n_feat)
     """
     traced_model = torch.jit.trace(model, input)
     traced_model.save('./chkpt/rawnet3_traced.pt')
@@ -73,16 +77,17 @@ if __name__ == "__main__" :
     print("ONXX Export")
     model.to_onnx("./chkpt/"+name+".onnx")
 
-    # Eval for DNS2020 dev synthetic no reverb
-    print("Eval DNS2020 dev : {}".format(len(list_DNS)))
-    hp.log.eval = ["PESQ","SISDR","SigMOS","STOI", "PESQ_WB","PESQ_NB"]
-    metric_DNS = evaluate(hp,model,list_DNS,"cpu")
+    if flag_get_score : 
+        # Eval for DNS2020 dev synthetic no reverb
+        print("Eval DNS2020 dev : {}".format(len(list_DNS)))
+        hp.log.eval = ["PESQ","SISDR","SigMOS","STOI", "PESQ_WB","PESQ_NB"]
+        metric_DNS = evaluate(hp,model,list_DNS,"cpu")
 
 
-    # Eval for Voice+Demand
-    print("Eval Voice+Demand : {}".format(len(list_VD)))
-    hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
-    metric_VD = evaluate(hp,model,list_VD,"cpu")
+        # Eval for Voice+Demand
+        print("Eval Voice+Demand : {}".format(len(list_VD)))
+        hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
+        metric_VD = evaluate(hp,model,list_VD,"cpu")
 
     ### N_PARAM
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -98,16 +103,17 @@ if __name__ == "__main__" :
     total_flops = 2*macs
     print("MACs : {} | Flops : {}".format(macs,total_flops))
 
-    with open("./log/"+name+".txt","w") as f :
-        f.write("VD : \n")
-        for k,v in metric_VD.items() :
-            f.write("{} : {}\n".format(k,v))
-        f.write("DNS : \n")
-        for k,v in metric_DNS.items() :
-            f.write("{} : {}\n".format(k,v))
-        f.write("N_PARAM : {}\n".format(n_parameters))
-        f.write("MACs : {}\n".format(macs))
-        f.write("Flops : {}\n".format(total_flops))
+    if flag_get_score : 
+        with open("./log/"+name+".txt","w") as f :
+            f.write("VD : \n")
+            for k,v in metric_VD.items() :
+                f.write("{} : {}\n".format(k,v))
+            f.write("DNS : \n")
+            for k,v in metric_DNS.items() :
+                f.write("{} : {}\n".format(k,v))
+            f.write("N_PARAM : {}\n".format(n_parameters))
+            f.write("MACs : {}\n".format(macs))
+            f.write("Flops : {}\n".format(total_flops))
 
 
 
