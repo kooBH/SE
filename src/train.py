@@ -53,6 +53,7 @@ if __name__ == '__main__':
     num_workers = hp.train.num_workers
 
     best_loss = 1e7
+    best_pesq = 0.0
 
     ## load
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
@@ -136,10 +137,17 @@ if __name__ == '__main__':
                 epochs=hp.train.epoch,
                 steps_per_epoch = len(train_loader)
           )
+    elif hp.scheduler.type == "LinearPerEpoch" :
+        from utils.schedule import LinearPerEpochScheduler
+        scheduler = LinearPerEpochScheduler(optimizer, len(train_loader))
     elif hp.scheduler.type == "CosineAnnealingLR" : 
        scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.scheduler.CosineAnnealingLR.T_max, eta_min=hp.scheduler.CosineAnnealingLR.eta_min) 
     else :
         raise Exception("Unsupported sceduler type : {}".format(hp.scheduler.type))
+    
+    if hp.scheduler.use_warmup : 
+        from utils.schedule import WarmUpScheduler
+        warmup = WarmUpScheduler(optimizer, len(train_loader))
 
     step = args.step
     cnt_log = 0
@@ -164,6 +172,11 @@ if __name__ == '__main__':
         log_loss = 0
         for i, data in enumerate(train_loader):
             step +=data[list(data.keys())[0]].shape[0]
+
+
+            if hp.scheduler.use_warmup : 
+                if epoch == 0 :
+                    warmup.step()
 
             """
             torch.cuda.amp.autocast() is not good with
@@ -244,8 +257,15 @@ if __name__ == '__main__':
 
             ## Metric
             metric = evaluate(hp,model,list_eval,device=device)
-            for m in hp.log.dev : 
+            for m in hp.log.eval : 
                 writer.log_value(metric[m],step,m)
+
+            if metric["PESQ_WB"] > best_pesq : 
+                best_pesq = metric["PESQ_WB"]
+                torch.save(model.state_dict(), str(modelsave_path)+"/best_pesq.pt")
+            #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
+
+
     writer.close()
 
     ## Log for best model

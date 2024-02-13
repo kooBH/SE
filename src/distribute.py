@@ -98,10 +98,19 @@ if __name__ == "__main__" :
     #flops = FlopCountAnalysis(model.helper, input)
     #total_flops = flops.total()
 
-    from thop import profile
-    macs, params = profile(model.helper, inputs=(input,))
-    total_flops = 2*macs
-    print("MACs : {} | Flops : {}".format(macs,total_flops))
+
+    model.helper.eval()
+    # https://github.com/Lyken17/pytorch-OpCounter
+    #from thop import profile
+    #input = torch.rand(1,n_fft//2+1,T,n_feat)
+    #macs_thop, params_thop = profile(model.helper, inputs=(input,))
+    #print("thop : MACS : {} | Param : {}".format(macs_thop,params_thop))
+
+    # https://github.com/sovrasov/flops-counter.pytorch
+    from ptflops import get_model_complexity_info
+    macs_ptflos, params_ptflops = get_model_complexity_info(model.helper, (n_fft//2+1,T,n_feat), as_strings=False,                                           print_per_layer_stat=True, verbose=True)   
+    print("ptflops : MACS {} |  PARAM {}".format(macs_ptflos,params_ptflops))
+
 
     if flag_get_score : 
         with open("./log/"+name+".txt","w") as f :
@@ -112,8 +121,9 @@ if __name__ == "__main__" :
             for k,v in metric_DNS.items() :
                 f.write("{} : {}\n".format(k,v))
             f.write("N_PARAM : {}\n".format(n_parameters))
-            f.write("MACs : {}\n".format(macs))
-            f.write("Flops : {}\n".format(total_flops))
+            f.write("MACS : {}\n".format(macs_ptflos))
+            f.write("PARAM_ptflops : {}\n".format(params_ptflops))
+        #    f.write("Flops : {}\n".format(total_flops))
 
 
 

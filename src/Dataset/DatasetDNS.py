@@ -138,9 +138,12 @@ class DatasetDNS(torch.utils.data.Dataset):
             noise = rs.load(path_noise,sr=self.sr)[0]
 
             if self.hp.data.use_RIR : 
-                # sample RIR
-                path_RIR = random.choice(self.list_RIR)
-                RIR = rs.load(path_RIR,sr=self.sr)[0]
+                if self.hp.data.RIR_prob > random.random() :
+                    # sample RIR
+                    path_RIR = random.choice(self.list_RIR)
+                    RIR = rs.load(path_RIR,sr=self.sr)[0]
+                else :
+                    RIR = None
             else :
                 RIR = None
 
