@@ -80,7 +80,10 @@ if __name__ == '__main__':
         req_clean_spec = True
     elif hp.loss.type == "TRUNetLoss":
         from mpSE.loss import TrunetLoss
-        criterion = TrunetLoss([4096, 2048, 1024, 512],[1024, 512, 256])
+        criterion = TrunetLoss(
+            #default : 4096, 2048, 1024, 512],[1024, 512, 256]
+            frame_size_sdr=hp.loss.TRUNetLoss.frame_size_sdr, frame_size_spec= hp.loss.TRUNetLoss.frame_size_spec
+            )
         req_clean_spec = False
     elif hp.loss.type == "HybridLoss":
         from mpSE.loss import HybridLoss
@@ -142,6 +145,8 @@ if __name__ == '__main__':
         scheduler = LinearPerEpochScheduler(optimizer, len(train_loader))
     elif hp.scheduler.type == "CosineAnnealingLR" : 
        scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.scheduler.CosineAnnealingLR.T_max, eta_min=hp.scheduler.CosineAnnealingLR.eta_min) 
+    elif hp.scheduler.type == "StepLR" :
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hp.scheduler.StepLR.step_size, gamma=hp.scheduler.StepLR.gamma)
     else :
         raise Exception("Unsupported sceduler type : {}".format(hp.scheduler.type))
     
@@ -206,6 +211,9 @@ if __name__ == '__main__':
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
+            if hp.scheduler.type == 'LinearPerEpoch' :
+                scheduler.step()
+
             train_loss += loss.item()
             log_loss += loss.item()
 
@@ -236,7 +244,16 @@ if __name__ == '__main__':
             print('TEST::{} :  Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version, epoch+1, num_epochs, j+1, len(test_loader), loss.item()))
 
             test_loss = test_loss/len(test_loader)
-            scheduler.step(test_loss)
+
+            if hp.scheduler.type == 'Plateau' :
+                scheduler.step(test_loss)
+            elif hp.scheduler.type == 'oneCycle' :
+                scheduler.step()
+            elif hp.scheduler.type == "CosineAnnealingLR" :
+                scheduler.step()
+            elif hp.scheduler.type == "StepLR" :
+                scheduler.step()
+
 
             estim,loss= run(hp,data,model,criterion,ret_output=
             True,device=device)
