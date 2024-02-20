@@ -164,6 +164,18 @@ if __name__ == '__main__':
         path_clean = os.path.join(hp.data.eval.clean,basename)
         list_eval.append([path_noisy,path_clean])
 
+    list_DNS_noisy = glob.glob(os.path.join(hp.data.eval.DNS,"noisy","*.wav"),recursive=True)
+
+    list_DNS=[]
+    for path_noisy in list_DNS_noisy :
+        token = path_noisy.split("/")[-1]
+        token = token.split("_")
+        fileid = token[-1].split(".")[0]
+        path_clean = os.path.join(hp.data.eval.DNS,"clean","clean_fileid_{}.wav".format(fileid))
+        list_DNS.append((path_noisy,path_clean))
+
+    ## scaler - may occur issue
+
     scaler = torch.cuda.amp.GradScaler()
     print("len dataset : {}".format(len(train_dataset)))
     print("len dataset : {}".format(len(test_dataset)))
@@ -205,8 +217,6 @@ if __name__ == '__main__':
                 #pdb.set_trace()
                 print("RuntimeERror!! : {}".format(e))
                 continue
-
-            
 
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
@@ -275,10 +285,14 @@ if __name__ == '__main__':
             ## Metric
             metric = evaluate(hp,model,list_eval,device=device)
             for m in hp.log.eval : 
-                writer.log_value(metric[m],step,m)
+                writer.log_value(metric[m],step,m+"_VD")
 
-            if metric["PESQ_WB"] > best_pesq : 
-                best_pesq = metric["PESQ_WB"]
+            metric_dns = evaluate(hp,model,list_DNS,device=device)
+            for m in hp.log.eval : 
+                writer.log_value(metric_dns[m],step,m+"_DNS")
+
+            if metric_dns["PESQ_WB"] > best_pesq : 
+                best_pesq = metric_dns["PESQ_WB"]
                 torch.save(model.state_dict(), str(modelsave_path)+"/best_pesq.pt")
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 

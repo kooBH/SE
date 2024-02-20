@@ -49,6 +49,7 @@ def get_model(hp,device="cuda:0"):
             phase_encoder=hp.model.phase_encoder,
             T_FGRU=hp.model.T_FGRU,
             type_TBlock=hp.model.type_TBlock,
+            type_FBlock=hp.model.type_FBlock,
             type_CBlock=hp.model.type_CBlock,
             type_skip = hp.model.type_skip,
             PLC = hp.model.PLC,
