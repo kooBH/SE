@@ -8,10 +8,16 @@ from common import get_model, evaluate
 from utils.metric import run_metric
 import librosa as rs
 
+flag_get_score = True
+
 dir_voice_demand = "/home/data/kbh/Voicebank+Demand"
 dir_dns2020      = "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
+dir_dns2020_reverb      = "/home/data/kbh/DNS2020/test_set/synthetic/with_reverb"
 
-flag_get_score = True
+dir_LibriSpeech_SNR10 = "/home/data/kbh/LibriSpeech_noisy/SNR10"
+dir_LibriSpeech_SNR5 = "/home/data/kbh/LibriSpeech_noisy/SNR5"
+dir_LibriSpeech_SNR0 = "/home/data/kbh/LibriSpeech_noisy/SNR0"
+
 
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
@@ -50,6 +56,22 @@ if __name__ == "__main__" :
         path_clean = os.path.join(dir_dns2020,"clean","clean_fileid_{}.wav".format(fileid))
         list_DNS.append((path_noisy,path_clean))
 
+    list_DNS_reverb_noisy = glob.glob(os.path.join(dir_dns2020_reverb,"noisy","*.wav"),recursive=True)
+    list_DNS_reverb=[]
+    for path_noisy in list_DNS_reverb_noisy :
+        token = path_noisy.split("/")[-1]
+        token = token.split("_")
+        fileid = token[-1].split(".")[0]
+        path_clean = os.path.join(dir_dns2020,"clean","clean_fileid_{}.wav".format(fileid))
+        list_DNS_reverb.append((path_noisy,path_clean))
+
+    list_LibriSpeech_SNR10 = glob.glob(os.path.join(dir_LibriSpeech_SNR10,"*.wav"),recursive=True)
+
+    list_LibriSpeech_SNR5 = glob.glob(os.path.join(dir_LibriSpeech_SNR5,"*.wav"),recursive=True)
+
+    list_LibriSpeech_SNR0 = glob.glob(os.path.join(dir_LibriSpeech_SNR0,"*.wav"),recursive=True)
+    
+
     ### ONNX
     n_fft = hp.audio.n_fft
     n_hop = hp.audio.n_hop
@@ -78,16 +100,23 @@ if __name__ == "__main__" :
     model.to_onnx("./chkpt/"+name+".onnx")
 
     if flag_get_score : 
+        hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
         # Eval for DNS2020 dev synthetic no reverb
         print("Eval DNS2020 dev : {}".format(len(list_DNS)))
-        hp.log.eval = ["PESQ","SISDR","SigMOS","STOI", "PESQ_WB","PESQ_NB"]
         metric_DNS = evaluate(hp,model,list_DNS,"cpu")
 
+        print("Eval DNS2020 reverb dev : {}".format(len(list_DNS)))
+        metric_DNS_reverb = evaluate(hp,model,list_DNS_reverb,"cpu")
 
         # Eval for Voice+Demand
         print("Eval Voice+Demand : {}".format(len(list_VD)))
-        hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
         metric_VD = evaluate(hp,model,list_VD,"cpu")
+
+#        print("WER LibriSpeech SNR10 : {}".format(len(list_LibriSpeech_SNR10)))
+
+#        print("WER LibriSpeech SNR5 : {}".format(len(list_LibriSpeech_SNR5)))
+
+#        print("WER LibriSpeech SNR0  : {}".format(len(list_LibriSpeech_SNR0)))
 
     ### N_PARAM
     n_parameters = sum(p.numel() for p in model.parameters() if p.requires_grad)
@@ -117,13 +146,22 @@ if __name__ == "__main__" :
             f.write("VD : \n")
             for k,v in metric_VD.items() :
                 f.write("{} : {}\n".format(k,v))
-            f.write("DNS : \n")
+            f.write("DNS no_reverb: \n")
             for k,v in metric_DNS.items() :
+                f.write("{} : {}\n".format(k,v))
+            f.write("DNS with_reverb : \n")
+            for k,v in metric_DNS_reverb.items() :
                 f.write("{} : {}\n".format(k,v))
             f.write("N_PARAM : {}\n".format(n_parameters))
             f.write("MACS : {}\n".format(macs_ptflos))
             f.write("PARAM_ptflops : {}\n".format(params_ptflops))
         #    f.write("Flops : {}\n".format(total_flops))
+    else : 
+        with open("./log/"+name+".txt","w") as f :
+            f.write("N_PARAM : {}\n".format(n_parameters))
+            f.write("MACS : {}\n".format(macs_ptflos))
+            f.write("PARAM_ptflops : {}\n".format(params_ptflops))
+
 
 
 

@@ -6,6 +6,7 @@ from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2
 from FSN.FullSubNet_Plus import FullSubNet_Plus
 from mpSE.TRUNet import TRUNet
+from mpSE.CUNet import CUNet_helper
 from MTFAA.MTFAA import MTFAA_helper
 import librosa as rs
 from utils.metric import run_metric
@@ -68,6 +69,8 @@ def get_model(hp,device="cuda:0"):
             type_encoder = hp.model.type_encoder,
             type_ASA = hp.model.type_ASA
         ).to(device)
+    elif hp.model.type == "CUNet" : 
+        model = CUNet_helper(**hp.model).to(device)
     elif hp.model.type =="None":
         model = nn.Identity()
     else : 
@@ -109,7 +112,8 @@ def run(
         feature = data["noisy"].to(device)
         estim = model(feature)
     else : 
-        raise Exception("ERROR::Unnkwon Model : {}".format(hp.model.type))
+        feature = data["noisy"].to(device)
+        estim = model(feature)
 
     if criterion is None : 
         return estim
@@ -140,7 +144,7 @@ def run(
         """
         loss = criterion(estim,noisy.to(device),clean.to(device), alpha=hp.loss.wSDRLoss.alpha).to(device)
     elif hp.loss.type == "mwMSELoss" : 
-        loss = criterion(estim,data["clean_spec"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.data.n_fft,device=device).to(device)
+        loss = criterion(estim,data["clean"].to(device), alpha=hp.loss.mwMSELoss.alpha,sr=hp.data.sr,n_fft=hp.audio.n_fft,device=device).to(device)
     elif hp.loss.type== "MSELoss":
         loss = criterion(estim,data["clean"].to(device))
     elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
@@ -158,6 +162,7 @@ def run(
         print("Warning::There is nan in loss, nan_to_num(1e-7)")
         loss = torch.tensor(0.0).to(loss.device)
         loss.requires_grad_()
+        import pdb;pdb.set_trace()
 
     if ret_output :
         return estim, loss

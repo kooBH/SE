@@ -37,11 +37,9 @@ if __name__ == "__main__" :
     n_feat = 2
 
     input = torch.rand(1,n_fft//2+1,1,n_feat)
-    """
-    traced_model = torch.jit.trace(model, input)
-    traced_model.save('./chkpt/rawnet3_traced.pt')
-    torch.backends.cudnn.deterministic = True
-    """
+    #traced_model = torch.jit.trace(model, input)
+    #traced_model.save('./chkpt/rawnet3_traced.pt')
+    #torch.backends.cudnn.deterministic = True
 
     print("ONXX Export")
     model.to_onnx("./chkpt/"+name+".onnx")

@@ -5,6 +5,7 @@ import os
 import glob
 import numpy as np
 import librosa as rs
+import time
 
 from tensorboardX import SummaryWriter
 
@@ -18,7 +19,6 @@ from utils.Loss import wSDRLoss,mwMSELoss,LevelInvariantNormalizedLoss
 from utils.metric import run_metric
 
 from common import run,get_model, evaluate
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -63,7 +63,6 @@ if __name__ == '__main__':
     os.makedirs(modelsave_path,exist_ok=True)
     os.makedirs(log_dir,exist_ok=True)
     os.makedirs(csv_dir,exist_ok=True)
-
 
     ## Loss
     req_clean_spec = False
@@ -190,7 +189,6 @@ if __name__ == '__main__':
         for i, data in enumerate(train_loader):
             step +=data[list(data.keys())[0]].shape[0]
 
-
             if hp.scheduler.use_warmup : 
                 if epoch == 0 :
                     warmup.step()
@@ -218,7 +216,7 @@ if __name__ == '__main__':
                 print("RuntimeERror!! : {}".format(e))
                 continue
 
-            torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+            #torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
             optimizer.step()
 
             if hp.scheduler.type == 'LinearPerEpoch' :
@@ -234,6 +232,8 @@ if __name__ == '__main__':
 
                 log_loss = 0
                 cnt_log =  0
+            if device == "cuda:1":
+                time.sleep(0.01)
             cnt_log +=1
 
         train_loss = train_loss/len(train_loader)
@@ -296,6 +296,8 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), str(modelsave_path)+"/best_pesq.pt")
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 
+            if device == "cuda:1":
+                time.sleep(0.01)
 
     writer.close()
 

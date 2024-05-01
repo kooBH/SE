@@ -108,16 +108,10 @@ class DatasetDNS(torch.utils.data.Dataset):
         noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)
         clean *= noisy_scalar
 
-        if self.is_clipped(noisy) :
+        if self.is_clipped(noisy):
             noisy_scalar = np.max(np.abs(noisy)) / (0.99 - eps)  # same as divide by 1
             noisy = noisy / noisy_scalar
             clean = clean / noisy_scalar
-
-        if self.is_clipped(clean) : 
-            clean_scalar = np.max(np.abs(clean)) / (0.99 - eps)  # same as divide by 1
-            noisy = noisy / clean_scalar
-            clean = clean / clean_scalar
-
 
         return noisy, clean
     
@@ -131,47 +125,13 @@ class DatasetDNS(torch.utils.data.Dataset):
         path_clean = os.path.join(self.hp.data.dev.root,dev_type,"clean","clean_fileid_{}.wav".format(fid))
 
         return path_clean
-    
-    def mix_clean(self,n_spk):
-        cur_spk = 0
-        clean_pool = None
-        while cur_spk < n_spk : 
-            path_clean = random.choice(self.list_clean)
-            clean = rs.load(path_clean,sr=self.sr)[0]
-
-            # norm clean
-            #clean = clean / np.max(np.abs(clean))
-
-            if np.sum(np.abs(clean)) < 1e-7 : 
-                continue
-
-            # main speaker 
-            if cur_spk == 0 :
-                clean,_ = self.match_length(clean)
-
-                clean_pool = clean
-            # overlaped speaker
-            else : 
-                # Start point addjust
-                space = self.len_data * np.random.uniform(self.hp.data.range_multitalk[0],self.hp.data.range_multitalk[1])
-
-                clean = np.pad(clean,(int(space),0))
-                clean,_ = self.match_length(clean,idx_start = 0)
-                clean_pool += clean
-
-            cur_spk += 1
-        # norm clean_pool
-        clean_pool_t = clean_pool / np.max(np.abs(clean_pool))
-
-        return clean_pool_t
 
     def __getitem__(self, idx):
-
+        
         if self.is_train : 
-            n_spk = np.random.choice(len(self.hp.data.prob_spk),1,p=self.hp.data.prob_spk)[0]+1
-
             # sample clean
-            clean = self.mix_clean(n_spk)
+            path_clean = random.choice(self.list_clean)
+            clean = rs.load(path_clean,sr=self.sr)[0]
 
             # sample noise
             path_noise = random.choice(self.list_noise)
@@ -187,7 +147,6 @@ class DatasetDNS(torch.utils.data.Dataset):
             else :
                 RIR = None
 
-
             ## Length Match
             clean,_ = self.match_length(clean)
             noise,_ = self.match_length(noise)
@@ -198,6 +157,7 @@ class DatasetDNS(torch.utils.data.Dataset):
             path_noisy = self.list_noisy[idx]
             path_clean = self.get_clean_dev(path_noisy)
             
+
             clean = rs.load(path_clean,sr=self.sr)[0]
             noisy = rs.load(path_noisy,sr=self.sr)[0]
 
@@ -226,27 +186,9 @@ class DatasetDNS(torch.utils.data.Dataset):
 ## DEV
 if __name__ == "__main__" : 
     import sys
-    sys.path.append("../")
+    sys.path.append("./")
     from utils.hparams import HParam
-    hp = HParam("../../config/mpSEv2/v138.yaml","../../config/mpSEv2/default.yaml")
-
-    db = DatasetDNS(hp,is_train=True)
-
-    def check(db) : 
-        for i in range(10000): 
-            sample_clean = db[i]["clean"]
-            sample_noisy = db[i]["noisy"]
-
-            abs_clean = np.abs(sample_clean)
-            abs_noisy = np.abs(sample_noisy)
-
-            if np.isnan(sample_clean).any() : 
-                import pdb; pdb.set_trace()
-
-            #print("shape {:.3f} {:.3f} | avg {:.3f} {:.3f} | sum {:.3f} {:.3f} | max {:.3f} {:.3f}".format(sample_clean.shape[0], sample_noisy.shape[0], np.mean(abs_clean), np.mean(abs_noisy), np.sum(abs_clean), np.sum(abs_noisy), np.max(abs_clean), np.max(abs_noisy)))
-
-    check(db)
-    import pdb; pdb.set_trace()
+    hp = HParam("../config/SPEAR/v20.yaml","../config/SPEAR/default.yaml")
   
 
 
