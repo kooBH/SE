@@ -1,0 +1,419 @@
+import os
+import torch
+import torch.nn as nn
+import torch.nn.functional as F
+import numpy as np
+
+from mpSE.skipGRU import SkipGRU
+from pathlib import Path
+
+from mpSE.coders import *
+from mpSE.necks import *
+from mpSE.edges import *
+from mpSE.skips import *
+
+def is_tracing():
+    # Taken for pytorch for compat in 1.6.0
+    """
+    Returns ``True`` in tracing (if a function is called during the tracing of
+    code with ``torch.jit.trace``) and ``False`` otherwise.
+    """
+    return torch._C._is_tracing()
+"""
+Default configuration from nsh's achitecture.json(2023-01-16)
+"""
+architecture_orig={
+        "encoder": {
+            "enc1": {"in_channels": 4, "out_channels": 64, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2]},
+            "enc2": {"in_channels": 64, "out_channels": 128, "kernel_size": [1, 3], "stride": [1,1], "padding": [0,1], "groups": 128},
+            "enc3": {"in_channels": 128, "out_channels": 128, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2], "groups": 128},
+            "enc4": {"in_channels": 128, "out_channels": 128, "kernel_size": [1, 3], "stride": [1,1], "padding": [0,1], "groups": 128},
+            "enc5": {"in_channels": 128, "out_channels": 128, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2], "groups": 128},
+            ## orig
+            #"enc6": {"in_channels": 128, "out_channels": 128, "kernel_size": [1, 3], "stride": [1,2], "padding": [0,1], "groups": 128}
+            ## for FSABlock
+            "enc6": {"in_channels": 128, "out_channels": 64, "kernel_size": [1, 3], "stride": [1,2], "padding": [0,1], "groups": 64}
+        },
+        "decoder": {
+            ## orig
+            #"dec6": {"in_channels": 192, "out_channels": 64, "kernel_size": [1, 3], "stride": [1, 2], "padding": [0, 1]},
+            ## for FSABlock
+            "dec6": {"in_channels": 128, "out_channels": 64, "kernel_size": [1, 3], "stride": [1, 2], "padding": [0, 1]},
+            "dec5": {"in_channels": 192, "out_channels": 64, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2]},
+            "dec4": {"in_channels": 192, "out_channels": 64, "kernel_size": [1, 3], "stride": [1, 1], "padding": [0, 1]},
+            "dec3": {"in_channels": 192, "out_channels": 64, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2]},
+            "dec2": {"in_channels": 192, "out_channels": 64, "kernel_size": [1, 3], "stride": [1, 1], "padding": [0, 1]},
+            "dec1": {"in_channels": 128, "out_channels": 4, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2]}
+        },
+        "PE": {"in_channels": 1, "out_channels" : 4 },
+        "FGRU": {"in_channels": 128, "hidden_size": 64, "out_channels": 64},
+        "FSA": {"in_channels": 64, "hidden_size": 64, "out_channels": 64},
+        "TGRU": {"in_channels": 64, "hidden_size": 128, "out_channels": 64, "state_size": 17},
+        "MEA": {"in_channels": 4, "mag_f_dim": 3}
+    }
+
+class _TRUNet_helper(nn.Module):
+    def __init__(self,
+                n_rfft, 
+                architecture=architecture_orig,
+                kernel_type = "orig",
+                skipGRU=False,
+                phase_encoder="PE",
+                type_TBlock = "TGRU",
+                type_FBlock = "FGRU",
+                type_CBlock = "None",
+                type_skip = "cat",
+                T_FGRU = False,
+                CR_use = False,
+                CR_n_band = 8,
+                CR_overlap = 0.333333,
+                ):
+        super(_TRUNet_helper, self).__init__()
+
+        self.architecture = architecture
+        self.tgru_state_size = self.architecture["TGRU"]["state_size"]
+        self.n_rfft = n_rfft
+        self.skipGRU = skipGRU
+
+        print("kernel_type : {}".format(kernel_type))
+
+        if kernel_type == "orig" : 
+            Encoder = DepthwiseSeparableConv2d
+            Decoder = TrCNN
+        elif kernel_type == "next" :
+            Encoder = DepthwiseNext
+            Decoder = TrNext
+        elif kernel_type == "GConv" :
+            Encoder = GConv
+            Decoder = TrGConv
+        elif kernel_type == "GConvFix" :
+            Encoder = GConv
+            Decoder = TrGConvFix
+        elif kernel_type == "AttNext" :
+            Encoder = AttNext
+            Decoder = TrGConv
+        elif kernel_type == "ResDepthNext":
+            Encoder = ResDepthNext
+            Decoder = TrResDepthNext
+        elif kernel_type == "ResDepthNext2":
+            Encoder = ResDepthNext
+            Decoder = TrNext2
+        else :
+            raise Exception("Unknown kernel_type : {}".format(kernel_type))
+
+        if phase_encoder == "PE" : 
+            PE = PhaseEncoderV1
+        elif phase_encoder == "PEv2" :
+            PE = PhaseEncoderV2
+        elif phase_encoder == "PEv3" :
+            PE = PhaseEncoderV3
+        elif phase_encoder == "PEv4" :
+            PE = PhaseEncoderV4
+        elif phase_encoder == "PEv5" :
+            PE = PhaseEncoderV5
+        elif phase_encoder == "PEv6" :
+            PE = PhaseEncoderV6
+        elif phase_encoder == "PEv7" :
+            PE = PhaseEncoderV7
+        elif phase_encoder == "PEv8" :
+            PE = PhaseEncoderV8
+        elif phase_encoder == "PEv9" :
+            PE = PhaseEncoderV9
+        elif phase_encoder == "PEv10" :
+            PE = PhaseEncoderV10
+        else :
+            PE = phase_encoder
+
+        if CR_use :
+            self.cr = CR(CR_n_band,overlap=CR_overlap)
+            self.icr = iCR(self.n_rfft,out_channels=self.architecture["MEA"]["in_channels"],overlap=CR_overlap)
+
+        else :
+            self.cr = nn.Identity()
+            self.icr = nn.Identity()
+
+        self.PE = PE(**self.architecture["PE"])
+
+        n_enc = len(self.architecture["encoder"])
+        self.n_enc = n_enc
+
+        self.enc = []
+        """ 2023.11.26 modifying structure
+        module = FirstDownConv2d(**self.architecture["encoder"]["enc1"]) 
+        self.add_module("enc1",module)
+        self.enc.append(module)
+
+        for i in range(n_enc-1) : 
+            module  = Encoder(**self.architecture["encoder"]["enc{}".format(i+2)])
+            self.add_module("enc{}".format(i+2),module)
+            self.enc.append(module)
+        """
+        for i in range(n_enc) : 
+            module  = Encoder(**self.architecture["encoder"]["enc{}".format(i+1)])
+            self.add_module("enc{}".format(i+1),module)
+            self.enc.append(module)
+
+        if type_FBlock == "FGRU":
+            self.fgru = FGRUBlock(**self.architecture["FGRU"])
+        elif type_FBlock == "FSA" :
+            self.fgru = FSABlock(**self.architecture["FSA"])
+        elif type_FBlock == "FSA2" :
+            self.fgru = FSA2Block(**self.architecture["FSA"])
+        elif type_FBlock == "FAT" :
+            self.fgru = FATBlock(**self.architecture["FAT"])
+
+        self.type_TBlock = type_TBlock
+        if type_TBlock == "TGRU" :
+            self.tgru = TGRUBlock(**self.architecture["TGRU"],skipGRU=skipGRU)
+        elif type_TBlock == "TLSTM" :
+            self.tgru = TLSTMBlock(**self.architecture["TGRU"],skipGRU=skipGRU)
+        elif type_TBlock == "TFGRU" :
+            self.tgru = TFGRUBlock(**self.architecture["TGRU"])
+        else :
+            raise Exception("Unknown type_TBlock : {}".format(type_TBlock))
+
+        if type_CBlock == "CSA" : 
+            self.cblock = CSABlock(**self.architecture["CSA"])
+        else :
+            self.cblock = nn.Identity()
+
+        if T_FGRU :
+            self.t_fgru = T_FGRUBlock(**self.architecture["T_FGRU"])
+        else :
+            self.t_fgru = nn.Identity()
+
+        self.dec = []
+        """ 2023.11.26
+        for i in range(n_enc-1) : 
+            module = Decoder(**self.architecture["decoder"]["dec{}".format(n_enc-i)])
+            self.add_module("dec{}".format(n_enc-i),module)
+            self.dec.append(module)
+        module = LastTrCNN(**self.architecture["decoder"]["dec1"])
+        self.add_module("dec1",module)
+        self.dec.append(module)
+        """
+        for i in range(n_enc) : 
+            module = Decoder(**self.architecture["decoder"]["dec{}".format(n_enc-i)])
+            self.add_module("dec{}".format(n_enc-i),module)
+            self.dec.append(module)
+
+        if type_skip == "cat" :
+            self.skipper = SkipCat()
+        elif type_skip == "add" :
+            self.skipper = SkipAdd()
+        elif type_skip == "att1" :
+            self.skipper = SkipAttTypeI(**self.architecture["SkipAtt"])
+        elif type_skip == "att2" :
+            self.skipper = SkipAttTypeII(**self.architecture["SkipAtt"])
+        else : 
+            self.skipper = SkipCat()
+
+        self.mea = MEA(**self.architecture["MEA"])
+
+        self.enc = nn.ModuleList(self.enc)
+        self.dec = nn.ModuleList(self.dec)
+
+    def create_dummy_states(self, batch_size, device, **kwargs):
+
+        pe_state_shape = (1, self.n_rfft, 2, 2)
+        if self.type_TBlock == "TGRU" :
+            shape = (self.tgru.GRU.num_layers, batch_size * self.tgru_state_size, self.tgru.GRU.hidden_size)
+            return torch.zeros(*shape).to(device), torch.zeros(*pe_state_shape).to(device)
+        elif self.type_TBlock == "TLSTM" :
+            shape = (self.tgru.GRU.num_layers, batch_size * self.tgru_state_size, self.tgru.GRU.hidden_size)
+            return (torch.zeros(*shape).to(device),torch.zeros(*shape).to(device)), torch.zeros(*pe_state_shape).to(device)
+        elif self.type_TBlock == "TFGRU" :
+            shape = (1, batch_size, self.tgru.GRU.hidden_size)
+            return torch.zeros(*shape).to(device), torch.zeros(*pe_state_shape).to(device)
+        else : 
+            raise Exception("Unknown type_TBlock : {}".format(self.type_TBlock))
+
+    def pad_x(self, x, pe_state):
+        if is_tracing():
+            padded_x = torch.cat((pe_state, x), dim=-2)
+            pe_state = padded_x[..., 1:, :]
+        else:
+            padded_x = F.pad(x, (0, 0, 2, 0), "constant", 0.0)
+        return padded_x, pe_state
+
+    def forward(self, x, tgru_state=None, pe_state=None):
+        if tgru_state is None:
+            tgru_state,pe_state  = self.create_dummy_states(1,x.device)
+        padded_x, pe_state = self.pad_x(x, pe_state)
+        # x.size() = [B,F,T,2]
+        # feature size is equal to the number of fft bins
+        # B:batch_size, T:time_steps, C:channels, F:nfft
+        x_ = padded_x.permute(0, 3, 1, 2)
+        # x_.shape == (B,2,F,T)
+        x_ = self.PE(x_) # phase encoder would return (B,C,F,T)
+        x_ = self.cr(x_)
+        x_ = x_.permute(0, 1, 3, 2)  # x_.shape = (B,C,T,F) 
+        # in this scope, and between the reshapes, the shape of the data is (B,C,T,F)
+
+
+        #print("input : {} | {},{}".format(x_.shape,tgru_state.shape,pe_state.shape))
+        skip = []
+        for i in range(self.n_enc):
+            x_ = self.enc[i](x_)
+            skip.append(x_)
+            #print("enc{} : {}".format(i,x_.shape))
+
+
+        xf = self.fgru(x_)
+     #   print("xf {}".format(xf.shape))
+        x_, tgru_state = self.tgru(xf, tgru_state)
+
+        #print("xc {}".format(x_.shape))
+
+        x_ = self.cblock(x_)
+#       print("xt {}".format(x_.shape))
+
+        ## only TGRU
+        #xt, tgru_state = self.tgru(xd6, tgru_state)
+
+        for i in range(self.n_enc) : 
+            #x_ = self.dec[i](torch.cat([x_, skip[self.n_enc-i-1]], dim=-3))
+            x_ = self.dec[i](self.skipper(x_,skip[self.n_enc-i-1]))
+            #print("dec{} : {}".format(self.n_enc - i,x_.shape))
+#        exit()
+        z = x_.permute(0, 1, 3, 2)
+        # z.shape == (B,C,F,T) 
+
+        z = self.icr(z)
+
+        direct_stft_reim = self.mea(x, z)
+        return direct_stft_reim, tgru_state, pe_state  #direct_stft_reim.shape == (B,F,T,2)
+
+    def to_onnx(self, output_fp, device=torch.device("cpu")):
+        #output_folder = output_fp.parent
+        #if not os.path.exists(output_folder):
+        #    os.makedirs(output_folder)
+
+        dummy_input = torch.randn(1,self.n_rfft, 1, 2).to(device)
+        dummy_states, dummy_pe_state  = self.create_dummy_states(1,device)
+
+        torch.onnx.export(
+            self,
+            (dummy_input, dummy_states, dummy_pe_state),
+            output_fp,
+            verbose=False,
+            opset_version=16,
+            input_names=["inputs", "gru_state_in", "pe_state_in"],
+            output_names=["outputs", "gru_state_out", "pe_state_out"],
+        )
+
+class TRUNet(nn.Module):
+    def __init__(self, 
+        frame_size=512, 
+        hop_size=128,
+        architecture = architecture_orig,
+        kernel_type = "next",
+        skipGRU=False,
+        phase_encoder = "PE",
+        type_FBlock = "FSA",
+        type_TBlock = "TGRU",
+        type_CBlock = "None",
+        type_skip = "cat",
+        T_FGRU = False,
+        PLC = False,
+        PLC_alpha = 0.3,
+        CR_use = False,
+        CR_n_band = 8,
+        CR_overlap = 0.333333
+        ):
+        super().__init__()
+        self.helper = _TRUNet_helper(
+            frame_size // 2 + 1,
+            architecture = architecture,
+            kernel_type= kernel_type,
+            skipGRU=skipGRU,
+            phase_encoder=phase_encoder,
+            type_FBlock=type_FBlock,
+            T_FGRU=T_FGRU,
+            type_TBlock=type_TBlock,
+            type_CBlock=type_CBlock,
+            type_skip=type_skip,
+            CR_use = CR_use,
+            CR_n_band = CR_n_band,
+            CR_overlap = CR_overlap
+            )
+        self.frame_size = frame_size
+        self.hop_size = hop_size
+        self.window = torch.hann_window(self.frame_size)
+
+        if PLC :
+            self.m_in = PowerLawCompression(alpha=PLC_alpha)
+            self.m_out = PowerLawDecompression(alpha=PLC_alpha)
+        else :
+            self.m_in = nn.Identity()
+            self.m_out = nn.Identity()
+
+
+    def _to_spec(self,x):
+        B,L = x.shape
+        if self.frame_size == self.hop_size :
+
+            if L % self.frame_size != 0 :
+                x = F.pad(x,(0,self.frame_size - (L % self.frame_size)))
+            X = torch.reshape(x,(x.shape[0],self.frame_size,-1))
+            X = torch.fft.rfft(X,dim=1)
+            X = torch.stack([X.real,X.imag],dim=-1)
+        else : 
+            X = torch.stft(x, n_fft = self.frame_size, window=torch.hann_window(self.frame_size).to(x.device),return_complex=False)
+
+        return X
+
+
+    def _to_signal(self, stft):
+        # stft.size() = [B,F,T,2]
+        stft = stft[...,0] + 1j * stft[...,1]  # stft.shape (B,F,T)
+
+        if self.frame_size == self.hop_size : 
+            out_signal = torch.fft.irfft(stft,dim=1)
+            out_signal = torch.reshape(out_signal,(out_signal.shape[0],-1))
+        else :
+            out_signal = torch.istft(stft, self.frame_size, self.hop_size, self.frame_size, torch.hann_window(self.frame_size).to(stft.device))
+        
+        return out_signal  # out_signal.shape == (B,N), N = num_samples
+
+    def forward(self, x):
+        B,L = x.shape
+        X = self._to_spec(x)
+        # x.shape == (B,F,T,2)
+        input_tgru_state, pe_state = self.helper.create_dummy_states(X.shape[0], X.device)
+
+        X = self.m_in(X)
+
+        Y, _, _ = self.helper(X, input_tgru_state, pe_state)
+
+        Y = self.m_out(Y)
+
+        y = self._to_signal(Y)
+        # reverberant_out = self._mask2signal(in_mag, in_phase, mask_mag_r, mask_phase_r)
+
+        return y[:, :L]
+
+    def enhance_speech(self, x, _aux):
+        return self.forward(x)[0].detach().cpu().numpy()
+
+    def to_onnx(self, output_fp, device=torch.device("cpu")):
+        self.helper.to_onnx(output_fp, device)
+
+
+def test(
+    architecture = architecture_orig,
+    frame_size = 512,
+    hop_size = 128,
+    kernel_type="orig"
+         ) : 
+    batch_size = 2
+    m = TRUNet(
+        architecture=architecture,
+        frame_size=frame_size,
+        hop_size=hop_size,
+        type_FBlock="FSA",
+        kernel_type=kernel_type
+        )
+    inputs = torch.randn(batch_size,16000)
+    y = m(inputs)
+    print(y.shape)
