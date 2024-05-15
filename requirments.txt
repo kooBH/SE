@@ -7,3 +7,8 @@ pandas
 tensorboard
 tensorboardx
 matplotlib
+einops
+spafe
+pesq
+https://github.com/vBaiCai/python-pesq/archive/master.zip
+pystoi
