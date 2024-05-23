@@ -71,6 +71,10 @@ def get_model(hp,device="cuda:0"):
         ).to(device)
     elif hp.model.type == "CUNet" : 
         model = CUNet_helper(**hp.model).to(device)
+
+    elif hp.model.type == "ULCNet":
+        from ULCNet.ULCNet import ULCNet_helper
+        model = ULCNet_helper().to(device)
     elif hp.model.type =="None":
         model = nn.Identity()
     else : 

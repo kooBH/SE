@@ -13,3 +13,6 @@
 [submodule "src/Lite-RTSE"]
 	path = src/Lite-RTSE
 	url = https://github.com/kooBH/Lite-RTSE.git
+[submodule "src/ULCNet"]
+	path = src/ULCNet
+	url = https://github.com/kooBH/ULCNet.git

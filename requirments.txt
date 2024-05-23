@@ -12,3 +12,6 @@ spafe
 pesq
 https://github.com/vBaiCai/python-pesq/archive/master.zip
 pystoi
+onnx
+ptflops
+

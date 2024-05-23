@@ -90,7 +90,7 @@ if __name__ == "__main__" :
     if n_hop == 128 : 
         T = 125
     elif n_hop == 64 :
-        T= 250
+        T = 250
     else :
         raise ValueError("n_hop not supported : {}".format(n_hop))
 
