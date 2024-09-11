@@ -53,6 +53,9 @@ def get_model(hp,device="cuda:0"):
             type_FBlock=hp.model.type_FBlock,
             type_CBlock=hp.model.type_CBlock,
             type_skip = hp.model.type_skip,
+            type_mask = hp.model.type_mask,
+            type_encoder = hp.model.type_encoder,
+            type_decoder = hp.model.type_decoder,
             PLC = hp.model.PLC,
             PLC_alpha=hp.model.PLC_alpha,
             CR_use=hp.model.CR.use,
@@ -71,10 +74,15 @@ def get_model(hp,device="cuda:0"):
         ).to(device)
     elif hp.model.type == "CUNet" : 
         model = CUNet_helper(**hp.model).to(device)
-
+    elif hp.model.type == "mpANC_v0" : 
+        from mpANC.mpANC_v0 import mpANC_v0_helper
+        model = mpANC_v0_helper().to(device)
     elif hp.model.type == "ULCNet":
         from ULCNet.ULCNet import ULCNet_helper
         model = ULCNet_helper().to(device)
+    elif hp.model.type == "DDUNet" : 
+        from mpSE.DDUNet import DDUNet_helper
+        model = DDUNet_helper(**hp.model).to(device)
     elif hp.model.type =="None":
         model = nn.Identity()
     else : 
@@ -188,6 +196,24 @@ def evaluate(hp, model,list_data,device="cuda:0"):
             noisy = rs.load(path_noisy,sr=hp.data.sr)[0]
             noisy = torch.unsqueeze(torch.from_numpy(noisy),0).to(device)
             estim = model(noisy).cpu().detach().numpy()[0]
+            """
+            de Oliveira, Danilo, et al. "The PESQetarian: On the Relevance of Goodhart's Law for Speech Enhancement." arXiv preprint arXiv:2406.03460 (2024).
+
+            4.2. A click trick
+
+            estim[0] = 666
+            
+            SISDR : 17.635896682739258
+            STOI : 0.9255793799858026
+            PESQ_WB : 2.6401411765119405
+            PESQ_NB : 3.37982897590665
+              => 
+            PESQ : 4.079875015373369
+            SISDR : -34.3325309753418
+            STOI : 0.9255793791598883
+            PESQ_WB : 3.975415694771461
+            PESQ_NB : 4.184334335975277
+            """
             clean = rs.load(path_clean,sr=hp.data.sr)[0]
 
             if len(clean) > len(estim) :

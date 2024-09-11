@@ -18,7 +18,6 @@ dir_LibriSpeech_SNR10 = "/home/data/kbh/LibriSpeech_noisy/SNR10"
 dir_LibriSpeech_SNR5 = "/home/data/kbh/LibriSpeech_noisy/SNR5"
 dir_LibriSpeech_SNR0 = "/home/data/kbh/LibriSpeech_noisy/SNR0"
 
-
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, required=True,
@@ -71,7 +70,6 @@ if __name__ == "__main__" :
     list_LibriSpeech_SNR5 = glob.glob(os.path.join(dir_LibriSpeech_SNR5,"*.wav"),recursive=True)
 
     list_LibriSpeech_SNR0 = glob.glob(os.path.join(dir_LibriSpeech_SNR0,"*.wav"),recursive=True)
-    
 
     ### ONNX
     n_fft = hp.audio.n_fft
@@ -82,7 +80,6 @@ if __name__ == "__main__" :
 
     # torch to ONNX
     version = args.version
-
     name = task + "_" + version
 
     ## tracing
@@ -101,9 +98,6 @@ if __name__ == "__main__" :
     traced_model.save('./chkpt/rawnet3_traced.pt')
     torch.backends.cudnn.deterministic = True
     """
-
-    print("ONXX Export")
-    model.to_onnx("./chkpt/"+name+".onnx")
 
     if flag_get_score : 
         hp.log.eval = ["PESQ","SISDR","STOI","PESQ_WB","PESQ_NB"]
@@ -133,10 +127,11 @@ if __name__ == "__main__" :
     #flops = FlopCountAnalysis(model.helper, input)
     #total_flops = flops.total()
 
-
     if hp.model.type == "TRUMEA" : 
         model.helper.eval()
-    else  :
+    elif hp.model.type == "DDUNet" : 
+        model.model.eval()
+    else :
         model.model.eval()
     # https://github.com/Lyken17/pytorch-OpCounter
     #from thop import profile
@@ -150,8 +145,13 @@ if __name__ == "__main__" :
         macs_ptflos, params_ptflops = get_model_complexity_info(model.helper, (n_fft//2+1,T,n_feat), as_strings=False,                                           print_per_layer_stat=True, verbose=True)   
     elif hp.model.type == "CUNet":
         macs_ptflos, params_ptflops = get_model_complexity_info(model.model, (1,16000), as_strings=False,                                           print_per_layer_stat=True, verbose=True)   
-    print("ptflops : MACS {} |  PARAM {}".format(macs_ptflos,params_ptflops))
+    elif hp.model.type == "DDUNet" : 
+        macs_ptflos, params_ptflops = get_model_complexity_info(model.model, (n_fft//2+1,T,n_feat), as_strings=False,                                           print_per_layer_stat=True, verbose=True)   
+    else :
+        macs_ptflos, params_ptflops = get_model_complexity_info(model.model, (n_fft//2+1,T,n_feat), as_strings=False,                                           print_per_layer_stat=True, verbose=True)   
 
+
+    print("ptflops : MACS {} |  PARAM {}".format(macs_ptflos,params_ptflops))
 
     if flag_get_score : 
         with open("./log/"+name+".txt","w") as f :
@@ -176,6 +176,8 @@ if __name__ == "__main__" :
             f.write("PARAM_ptflops : {}\n".format(params_ptflops))
 
 
+    print("ONXX Export")
+    model.to_onnx("./chkpt/"+name+".onnx")
 
 
 

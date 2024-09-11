@@ -59,10 +59,16 @@ if __name__ == '__main__':
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
     log_dir = hp.log.root+'/'+'log'+'/'+version
     csv_dir = hp.log.root+"/csv/"
+    seed_dir = hp.log.root+"/seed/"
+
 
     os.makedirs(modelsave_path,exist_ok=True)
     os.makedirs(log_dir,exist_ok=True)
     os.makedirs(csv_dir,exist_ok=True)
+    os.makedirs(seed_dir,exist_ok=True)
+
+    with open(seed_dir + "seed_"+version+".txt",'w') as f: 
+        f.write(str(torch.seed()))
 
     ## Loss
     req_clean_spec = False
@@ -78,23 +84,30 @@ if __name__ == '__main__':
         criterion = [mwMSELoss, wSDRLoss]
         req_clean_spec = True
     elif hp.loss.type == "TRUNetLoss":
-        from mpSE.loss import TrunetLoss
+        from utils.Loss import TrunetLoss
         criterion = TrunetLoss(
             #default : 4096, 2048, 1024, 512],[1024, 512, 256]
-            frame_size_sdr=hp.loss.TRUNetLoss.frame_size_sdr, frame_size_spec= hp.loss.TRUNetLoss.frame_size_spec
+            frame_size_sdr=hp.loss.TRUNetLoss.frame_size_sdr, frame_size_spec= hp.loss.TRUNetLoss.frame_size_spec,
+            overlap = hp.loss.TRUNetLoss.overlap
             )
         req_clean_spec = False
     elif hp.loss.type == "HybridLoss":
         from mpSE.loss import HybridLoss
         criterion = HybridLoss([4096, 2048, 1024, 512],[1024, 512, 256],alpha = hp.loss.HybridLoss.alpha)
         req_clean_spec = False
-       
     elif hp.loss.type == "LevelInvariantNormalizedLoss" : 
         criterion = LevelInvariantNormalizedLoss().to(device)
-
+    elif hp.loss.type == "MultiLoss1" : 
+        from utils.Loss import MultiLoss1
+        criterion = MultiLoss1(
+            frame_size_sdr= hp.loss.MultiLoss1.frame_size_sdr,
+            frame_size_spec= hp.loss.MultiLoss1.frame_size_spec,
+            frame_size_aw = hp.loss.MultiLoss1.frame_size_aw,
+            weight_spec = hp.loss.MultiLoss1.weight_spec,
+            weight_sdr = hp.loss.MultiLoss1.weight_sdr,
+            weight_aw = hp.loss.MultiLoss1.weight_aw)
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
-
     ##  Dataset
     if hp.task == "Gender" : 
         train_dataset = DatasetGender(hp.data.root_train,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
@@ -181,6 +194,7 @@ if __name__ == '__main__':
 
     writer = MyWriter(log_dir)
 
+
     for epoch in range(num_epochs):
         ### TRAIN ####
         model.train()
@@ -234,7 +248,7 @@ if __name__ == '__main__':
                 cnt_log =  0
             if device == "cuda:1":
                 time.sleep(0.01)
-            cnt_log +=1
+            cnt_log += batch_size
 
         train_loss = train_loss/len(train_loader)
         torch.save(model.state_dict(), str(modelsave_path)+'/lastmodel.pt')
@@ -264,7 +278,6 @@ if __name__ == '__main__':
             elif hp.scheduler.type == "StepLR" :
                 scheduler.step()
 
-
             estim,loss= run(hp,data,model,criterion,ret_output=
             True,device=device)
 
@@ -277,6 +290,10 @@ if __name__ == '__main__':
             writer.log_audio(data["noisy"][0],"noisy_a",step)
             writer.log_audio(estim[0],"estim_a",step)
             writer.log_audio(data["clean"][0],"clean_a",step)
+
+            if hp.loss.type == "MultiLoss1" : 
+                for key in criterion.losses.keys() : 
+                    writer.log_value(criterion.losses[key],step,key)
 
             if best_loss > test_loss:
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')
@@ -296,8 +313,8 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), str(modelsave_path)+"/best_pesq.pt")
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 
-            if device == "cuda:1":
-                time.sleep(0.01)
+            #if device == "cuda:1":
+             #   time.sleep(0.01)
 
     writer.close()
 
