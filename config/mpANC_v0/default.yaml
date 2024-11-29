@@ -1,0 +1,89 @@
+task : DNS
+---
+model:
+  type : mpANC_v0
+---
+train:
+  epoch: 20
+  batch_size: 32
+  num_workers: 16
+  optimizer: 'AdamW'
+  Adam: 0.001
+  adabound:
+    initial: 0.001
+    final: 0.05
+  AdamW:
+    lr: 0.001
+  summary_interval: 500
+  validation_interval: 100
+  checkpoint_interval: 1000
+---
+loss:
+  type: 'TRUNetLoss'
+  wSDRLoss :
+    alpha : 0.99
+  mwMSELoss : 
+    alpha : 0.9
+  wSDRLoss :
+    alpha : 0.99
+  HybridLoss :
+    alpha : 0.9
+  TRUNetLoss :
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+  MultiLoss1 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    frame_size_aw : [1024,512,256]
+
+
+---
+scheduler: # Plateau, oneCycle, CosineAnnealingLR, LinearPerEpoch, StepLR
+  type: 'Plateau'
+  use_warmup : True
+  oneCycle:
+    max_lr: 0.001
+  Plateau:
+    mode: 'min'
+    patience: 2
+    factor: 0.5
+    min_lr: 0.000005
+  CosineAnnealingLR : 
+    T_max : 5
+    eta_min : 0.0
+  StepLR :
+    step_size : 3
+    gamma : 0.1
+---
+audio :
+  n_fft : 256
+  n_hop : 64
+---
+data:
+  RIR : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
+  clean : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/"
+  noise : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
+  dev : 
+    root : "/home/data/kbh/training_set_sept12_16k/"
+  eval :
+    clean : "/home/data/kbh/Voicebank+Demand/clean_testset_wav"
+    noisy : "/home/data/kbh/Voicebank+Demand/noisy_testset_wav"
+    DNS : "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
+  len_data : 49152 # 4096 * 12
+  n_item : 65365
+  use_RIR : True
+  RIR_prob : 0.5
+  sr : 16000
+  SNR : [-5,30]
+  target_dB_FS : -25
+  target_dB_FS_floating_value :  10
+  prob_spk : [1.0]
+  range_multitalk : [0.2, 0.8]
+---
+log:
+  root: '/home/data/kbh/logs/mpANC_v0'
+  plot_wav : True
+  plot_spec : True
+  dev : ["PESQ","SNR"]
+  eval : ["PESQ_WB","SNR"]
+  n_dev : 361
