@@ -106,6 +106,19 @@ if __name__ == '__main__':
             weight_spec = hp.loss.MultiLoss1.weight_spec,
             weight_sdr = hp.loss.MultiLoss1.weight_sdr,
             weight_aw = hp.loss.MultiLoss1.weight_aw)
+    elif hp.loss.type == "MultiLoss2" : 
+        from utils.Loss import MultiLoss2
+        criterion = MultiLoss2(
+            frame_size_sdr= hp.loss.MultiLoss1.frame_size_sdr,
+            frame_size_spec= hp.loss.MultiLoss1.frame_size_spec,
+            weight_spec = hp.loss.MultiLoss1.weight_spec)
+    elif hp.loss.type == "MultiDecibelLoss" : 
+        from utils.Loss import MultiDecibelLoss
+        criterion = MultiDecibelLoss(
+            frame_size_sdr=hp.loss.MultiDecibelLoss.frame_size_sdr,
+            weight = hp.loss.MultiDecibelLoss.weight
+            )
+
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
     ##  Dataset

@@ -104,7 +104,12 @@ class DatasetDNS(torch.utils.data.Dataset):
             if rir.ndim > 1:
                 rir_idx = np.random.randint(0, rir.shape[0])
                 rir = rir[rir_idx, :]
+
+            if self.hp.data.deverb_clean :
+                peak = np.argsmax(rir)
+                clean_peak  = signal.fftconvolve(clean,rir[:peak])[:len(clean)]
             clean = signal.fftconvolve(clean, rir)[:len(clean)]
+
 
         clean, _ = self.norm_amplitude(clean)
         clean, _, _ = self.tailor_dB_FS(clean, self.target_dB_FS)
@@ -122,7 +127,8 @@ class DatasetDNS(torch.utils.data.Dataset):
         noise *= snr_scalar
         noisy = clean + noise
 
-
+        if self.hp.data.deverb_clean : 
+            clean = clean_peak
 
         # rescale noisy RMS
         noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)

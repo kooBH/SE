@@ -1,0 +1,142 @@
+task : DNS
+---
+model:
+  type : TRUMEA
+  type_FBlock : "FSA3"
+  type_TBlock : "TGRU"
+  type_CBlock : "None"
+  type_skip : "SkipGate1"
+  type_mask : "MEA"
+  kernel_type : next #orig, next, GConv
+  type_encoder : None
+  type_decoder : None
+  skipGRU : False
+  phase_encoder : "PEv7"
+  T_FGRU : False
+  PLC : False
+  PLC_alpha : 0.3
+  # ChannelwiseReorientation
+  CR : 
+    use : True
+    n_band : 8
+    overlap : 0.3333333
+  architecture : {
+    "encoder": {
+        "enc1": {"in_channels": 4, "out_channels": 64, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2], "type_norm" : "BatchNorm2d", "type_activation" : "PReLU", "groups": 4, "embed_dim" : 64},
+        "enc2": {"in_channels": 64, "out_channels": 96, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2], "type_norm" : "BatchNorm2d", "groups": 64, "type_activation" : "PReLU","embed_dim" : 96},
+        "enc3": {"in_channels": 96, "out_channels": 128, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2], "type_norm" : "BatchNorm2d", "groups": 96, "type_activation" : "PReLU", "embed_dim" : 128},
+    },
+    "decoder": {
+        "dec3": {"in_channels": 128, "out_channels": 96, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2], "type_norm" : "BatchNorm2d", "type_activation" : "PReLU"},
+        "dec2": {"in_channels": 96, "out_channels": 64, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2], "type_norm" : "BatchNorm2d", "type_activation" : "PReLU", "output_padding" : [0,0]},
+        "dec1": {"in_channels": 64, "out_channels": 4, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2], "type_norm" : "BatchNorm2d", "type_activation" : "PReLU", "output_padding" : [0,0]}
+    },
+    "skipper":{
+      "skip3":{"n_channels" : 128},
+      "skip2":{"n_channels" : 96},
+      "skip1":{"n_channels" : 64}
+    },
+    "PE": {"in_channels": 2, "out_channels" : 4, "type_norm" : "BatchNorm2d", "pe_time" : 3},
+    "FGRU": {"in_channels": 128, "hidden_size": 128, "out_channels": 128},
+    "FSA": {"in_channels": 128, "hidden_size": 2, "out_channels": 128},
+  "TGRU": {"in_channels": 128, "hidden_size": 128, "out_channels": 128, "state_size": 17},
+    "MEA": {"in_channels": 4, "mag_f_dim": 3}
+}
+---
+train:
+  epoch: 20
+  batch_size: 128
+  num_workers: 32
+  optimizer: 'AdamW'
+  Adam: 0.001
+  adabound:
+    initial: 0.001
+    final: 0.05
+  AdamW:
+    lr: 0.001
+  summary_interval: 500
+  validation_interval: 100
+  checkpoint_interval: 1000
+---
+loss:
+  type: 'TRUNetLoss'
+  wSDRLoss :
+    alpha : 0.99
+  mwMSELoss : 
+    alpha : 0.9
+  wSDRLoss :
+    alpha : 0.99
+  HybridLoss :
+    alpha : 0.9
+  TRUNetLoss :
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    overlap : 0.25
+  MultiLoss1 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    frame_size_aw : [1024,512,256]
+    weight_sdr : 1
+    weight_spec : 15
+    weight_aw : 1
+  MultiLoss2 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    weight_spec : 15
+  MultiDecibelLoss : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    weight: [1.0, 1.0, 1.0]
+---
+scheduler: # Plateau, oneCycle, CosineAnnealingLR, LinearPerEpoch, StepLR
+  type: 'Plateau'
+  use_warmup : False
+  oneCycle:
+    max_lr: 0.001
+  Plateau:
+    mode: 'min'
+    patience: 2
+    factor: 0.5
+    min_lr: 0.000005
+  CosineAnnealingLR : 
+    T_max : 100
+    eta_min : 0
+  StepLR :
+    step_size : 3
+    gamma : 0.1
+---
+audio :
+  n_fft : 256
+  n_hop : 64
+---
+data:
+  RIR : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
+  clean : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/"
+  noise : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
+  dev : 
+    root : "/home/data/kbh/training_set_sept12_16k/"
+  eval :
+    clean : "/home/data/kbh/Voicebank+Demand/clean_testset_wav"
+    noisy : "/home/data/kbh/Voicebank+Demand/noisy_testset_wav"
+    DNS : "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
+  len_data : 49152 # 4096 * 12
+  n_item : 65365
+  use_RIR : True
+  deverb_clean : False
+  RIR_prob : 0.5
+  sr : 16000
+  SNR : [-10,25]
+  target_dB_FS : -25
+  target_dB_FS_floating_value :  10
+  prob_spk : [0.0, 1.0]
+  range_multitalk : [0.2, 0.8]
+  residual_clean :
+    use : False
+    SNR : [20,30]
+---
+log:
+  root: '/home/data/kbh/logs/mpSE4'
+  plot_wav : True
+  plot_spec : True
+  dev : ["PESQ","SNR"]
+  eval : ["PESQ_WB","SNR"]
+  n_dev : 361
