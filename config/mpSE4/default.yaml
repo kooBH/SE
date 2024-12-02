@@ -83,6 +83,13 @@ loss:
     frame_size_sdr : [4096, 2048, 1024, 512]
     frame_size_spec : [1024, 512, 256]
     weight_spec : 15
+    weight_sdr : 1
+  MultiLoss4 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    weight_spec : 1
+    weight_sdr : 1
+    overlap : 0.5
   MultiDecibelLoss : 
     frame_size_sdr : [4096, 2048, 1024, 512]
     weight: [1.0, 1.0, 1.0]

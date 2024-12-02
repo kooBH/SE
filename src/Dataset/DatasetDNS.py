@@ -11,7 +11,6 @@ import warnings
 from scipy import signal
 warnings.filterwarnings('ignore')
 
-
 def get_list(item,format) : 
     list_item = []
     if type(item) is str :
@@ -20,7 +19,6 @@ def get_list(item,format) :
         for i in item : 
             list_item += glob(join(i,"**",format),recursive=True)
     return list_item
-
 
 class DatasetDNS(torch.utils.data.Dataset):
     def __init__(self,hp,is_train=True):
@@ -99,14 +97,14 @@ class DatasetDNS(torch.utils.data.Dataset):
             noise, _, noise_scalar = self.tailor_dB_FS(noise, noisy_target_dB_FS)
 
             return noise, clean, noise
-
+        
         if rir is not None:
             if rir.ndim > 1:
                 rir_idx = np.random.randint(0, rir.shape[0])
                 rir = rir[rir_idx, :]
 
             if self.hp.data.deverb_clean :
-                peak = np.argsmax(rir)
+                peak = np.argmax(rir)
                 clean_peak  = signal.fftconvolve(clean,rir[:peak])[:len(clean)]
             clean = signal.fftconvolve(clean, rir)[:len(clean)]
 
@@ -127,8 +125,9 @@ class DatasetDNS(torch.utils.data.Dataset):
         noise *= snr_scalar
         noisy = clean + noise
 
-        if self.hp.data.deverb_clean : 
-            clean = clean_peak
+        if rir is not None:
+            if self.hp.data.deverb_clean : 
+                clean = clean_peak
 
         # rescale noisy RMS
         noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)
