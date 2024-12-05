@@ -109,9 +109,9 @@ if __name__ == '__main__':
     elif hp.loss.type == "MultiLoss2" : 
         from utils.Loss import MultiLoss2
         criterion = MultiLoss2(
-            frame_size_sdr= hp.loss.MultiLoss1.frame_size_sdr,
-            frame_size_spec= hp.loss.MultiLoss1.frame_size_spec,
-            weight_spec = hp.loss.MultiLoss1.weight_spec)
+            frame_size_sdr= hp.loss.MultiLoss2.frame_size_sdr,
+            frame_size_spec= hp.loss.MultiLoss2.frame_size_spec,
+            weight_spec = hp.loss.MultiLoss2.weight_spec)
     elif hp.loss.type == "MultiLoss4" : 
         from utils.Loss import MultiLoss4
         criterion = MultiLoss4(**hp.loss.MultiLoss4)
