@@ -43,8 +43,8 @@ class DatasetDNS(torch.utils.data.Dataset):
             self.eval["no_reverb"] = glob(join(hp.data.dev.root,"no_reverb","noisy","*.wav"),recursive=True)
 
         self.range_SNR = hp.data.SNR
-        self.target_dB_FS = -25
-        self.target_dB_FS_floating_value = 10
+        self.target_dB_FS = hp.data.target_dB_FS
+        self.target_dB_FS_floating_value = hp.data.target_dB_FS_floating_value
 
         self.len_data = hp.data.len_data
         self.n_item = hp.data.n_item
@@ -77,7 +77,7 @@ class DatasetDNS(torch.utils.data.Dataset):
     @staticmethod
     def tailor_dB_FS(y, target_dB_FS=-25, eps=1e-6):
         rms = np.sqrt(np.mean(y ** 2))
-        scalar = 10 ** (target_dB_FS / 20) / (rms + eps)
+        scalar = 10 ** (target_dB_FS / 10) / (rms + eps)
         y *= scalar
         return y, rms, scalar
 
@@ -121,7 +121,7 @@ class DatasetDNS(torch.utils.data.Dataset):
             self.range_SNR[0],self.range_SNR[1]
         )
 
-        snr_scalar = clean_rms / (10 ** (SNR / 20)) / (noise_rms + eps)
+        snr_scalar = clean_rms / (10 ** (SNR / 10)) / (noise_rms + eps)
         noise *= snr_scalar
         noisy = clean + noise
 
@@ -201,7 +201,7 @@ class DatasetDNS(torch.utils.data.Dataset):
 
         clean_rms = (clean ** 2).mean() ** 0.5
         noise_rms = (noise ** 2).mean() ** 0.5
-        snr_scalar = clean_rms / (10 ** (SNR / 20)) / (noise_rms + 1e-7)
+        snr_scalar = clean_rms / (10 ** (SNR / 10)) / (noise_rms + 1e-7)
         noise *= snr_scalar
 
         return clean

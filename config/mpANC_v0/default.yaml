@@ -72,6 +72,7 @@ data:
   len_data : 49152 # 4096 * 12
   n_item : 65365
   use_RIR : True
+  deverb_clean : False
   RIR_prob : 0.5
   sr : 16000
   SNR : [-5,30]
@@ -79,6 +80,9 @@ data:
   target_dB_FS_floating_value :  10
   prob_spk : [1.0]
   range_multitalk : [0.2, 0.8]
+  residual_clean :
+    use : False
+    SNR : [20,30]
 ---
 log:
   root: '/home/data/kbh/logs/mpANC_v0'

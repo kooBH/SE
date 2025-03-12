@@ -61,7 +61,7 @@ def get_model(hp,device="cuda:0"):
             CR_use=hp.model.CR.use,
             CR_n_band=hp.model.CR.n_band,
             CR_overlap=hp.model.CR.overlap,
-
+            type_window=hp.model.type_window,
          ).to(device)
     elif hp.model.type == "MTFAA" :
         model = MTFAA_helper(

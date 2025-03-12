@@ -37,6 +37,7 @@ if __name__ == "__main__" :
     model.load_state_dict(torch.load(args.chkpt, map_location="cpu"))
     model.eval()
 
+
     ## Prep Test Dataset
     list_VD_clean = glob.glob(os.path.join(dir_voice_demand,"clean_testset_wav","*.wav"),recursive=True) 
 
@@ -54,7 +55,7 @@ if __name__ == "__main__" :
         fileid = token[-1].split(".")[0]
         path_clean = os.path.join(dir_dns2020,"clean","clean_fileid_{}.wav".format(fileid))
         list_DNS.append((path_noisy,path_clean))
-    """
+
     list_DNS_reverb_noisy = glob.glob(os.path.join(dir_dns2020_reverb,"noisy","*.wav"),recursive=True)
     list_DNS_reverb=[]
     for path_noisy in list_DNS_reverb_noisy :
@@ -63,7 +64,6 @@ if __name__ == "__main__" :
         fileid = token[-1].split(".")[0]
         path_clean = os.path.join(dir_dns2020,"clean","clean_fileid_{}.wav".format(fileid))
         list_DNS_reverb.append((path_noisy,path_clean))
-    """
 
     list_LibriSpeech_SNR10 = glob.glob(os.path.join(dir_LibriSpeech_SNR10,"*.wav"),recursive=True)
 
@@ -105,8 +105,8 @@ if __name__ == "__main__" :
         print("Eval DNS2020 dev : {}".format(len(list_DNS)))
         metric_DNS = evaluate(hp,model,list_DNS,"cpu")
 
-        #print("Eval DNS2020 reverb dev : {}".format(len(list_DNS)))
-        #metric_DNS_reverb = evaluate(hp,model,list_DNS_reverb,"cpu")
+        print("Eval DNS2020 reverb dev : {}".format(len(list_DNS_reverb)))
+        metric_DNS_reverb = evaluate(hp,model,list_DNS_reverb,"cpu")
 
         # Eval for Voice+Demand
         print("Eval Voice+Demand : {}".format(len(list_VD)))
@@ -161,14 +161,14 @@ if __name__ == "__main__" :
             f.write("DNS no_reverb: \n")
             for k,v in metric_DNS.items() :
                 f.write("{} : {}\n".format(k,v))
-            #f.write("DNS with_reverb : \n")
-            #for k,v in metric_DNS_reverb.items() :
-            #    f.write("{} : {}\n".format(k,v))
+            f.write("DNS with_reverb : \n")
+            for k,v in metric_DNS_reverb.items() :
+                f.write("{} : {}\n".format(k,v))
             f.write("N_PARAM : {}\n".format(n_parameters))
             f.write("MACS : {}\n".format(macs_ptflos))
             f.write("PARAM_ptflops : {}\n".format(params_ptflops))
         #    f.write("Flops : {}\n".format(total_flops))
-            f.write("{},{},{},{},{},{},{},{}".format(metric_VD["PESQ_WB"],metric_VD["SISDR"],metric_VD["STOI"],metric_DNS["PESQ_WB"],metric_DNS["SISDR"],metric_DNS["STOI"],n_parameters,macs_ptflos))
+            #f.write("{},{},{},{},{},{},{},{}".format(metric_VD["PESQ_WB"],metric_VD["SISDR"],metric_VD["STOI"],metric_DNS["PESQ_WB"],metric_DNS["SISDR"],metric_DNS["STOI"],metric_DNS_reverb["PESQ_WB"],metric_DNS_reverb["SISDR"],metric_DNS_reverb["STOI"],n_parameters,macs_ptflos))
     else : 
         with open("./log/"+name+".txt","w") as f :
             f.write("N_PARAM : {}\n".format(n_parameters))

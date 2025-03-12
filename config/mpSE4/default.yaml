@@ -10,6 +10,7 @@ model:
   kernel_type : next #orig, next, GConv
   type_encoder : None
   type_decoder : None
+  type_window : 3
   skipGRU : False
   phase_encoder : "PEv7"
   T_FGRU : False
@@ -45,7 +46,7 @@ model:
 ---
 train:
   epoch: 20
-  batch_size: 128
+  batch_size: 64
   num_workers: 32
   optimizer: 'AdamW'
   Adam: 0.001

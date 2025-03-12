@@ -1,12 +1,16 @@
 task : DNS
 ---
 model:
-  mag_only : False
   type : TRUMEA
-  use_FSABlock : False
-  kernel_type : next #orig, next
+  type_FBlock : "FGRU"
+  type_TBlock : "TGRU"
+  type_CBlcok : "None"
+  kernel_type : next #orig, next, GConv
   skipGRU : False
   phase_encoder : "PE"
+  T_FGRU : False
+  PLC : False
+  PLC_alpha : 0.3
   architecture : {
     "encoder": {
         "enc1": {"in_channels": 4, "out_channels": 64, "kernel_size": [1, 5], "stride": [1,2], "padding": [0,2]},
@@ -30,9 +34,10 @@ model:
         "dec2": {"in_channels": 128, "out_channels": 64, "kernel_size": [1, 3], "stride": [1, 1], "padding": [0, 1]},
         "dec1": {"in_channels": 128, "out_channels": 4, "kernel_size": [1, 5], "stride": [1, 2], "padding": [0, 2]}
     },
-    "PE": {"in_channels": 1, "out_channels" : 4, "type_norm" : "BatchNorm2d"},
+    "PE": {"in_channels": 1, "out_channels" : 4, "type_norm" : "BatchNorm2d","bias" : True},
     "FGRU": {"in_channels": 64, "hidden_size": 64, "out_channels": 64},
     "FSA": {"in_channels": 64, "hidden_size": 64, "out_channels": 64},
+    "CSA": {"in_channels": 17, "hidden_size": 17, "out_channels": 17},
     "TGRU": {"in_channels": 64, "hidden_size": 64, "out_channels": 64, "state_size": 17},
     "MEA": {"in_channels": 4, "mag_f_dim": 3}
 }
@@ -40,8 +45,8 @@ model:
 ---
 train:
   epoch: 20
-  batch_size: 24
-  num_workers: 24 
+  batch_size: 36
+  num_workers: 36
   optimizer: 'Adam'
   Adam: 0.001
   adabound:
@@ -109,7 +114,7 @@ log:
   root: '/home/nas/user/kbh/mpSE'
   plot_wav : True
   plot_spec : True
-  eval : ["PESQ","STOI","SNR"]
+  eval : ["PESQ","STOI","SNR","DNSMOS", "SigMOS"]
   #n_eval : 30 # the number of files to evaluate
   # 2023.07.27 for all dev data
   n_eval : 361

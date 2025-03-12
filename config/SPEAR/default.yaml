@@ -1,12 +1,22 @@
 task : SPEAR
 ---
 model:
-  type : ResUNetOnFreq
+  type : ResUNetOnFreq # ResUNetOnFreq, ResUNetOnFreq2
   mag_only : true
-  len_sec : 5
+  use_cdr : false
   activation : "Softplus" # Sigmoid, Softplus
+  activation_layer : "PReLU"
   Softplus_thr : 20
-
+  norm : "BatchNorm2d"
+  normalize : True
+  cplx_enc : false
+  dropout : 0.0
+  bottleneck : "LSTM" #LSTM, FTGRU
+  multi_scale : false
+  dB : false
+---
+apply : 
+  hfft_max : 257
 ---
 train:
   epoch: 20
@@ -24,9 +34,10 @@ train:
 loss:
   type: 'MSELoss'
   wSDRLoss :
-    alpha : 0.1
+    alpha : 0.9
   mwMSELoss : 
     alpha : 0.9
+
 ---
 scheduler: # Plateau, oneCycle, None
   type: 'Plateau'
@@ -40,10 +51,22 @@ scheduler: # Plateau, oneCycle, None
 ---
 audio :
   n_fft : 512
+  n_hop : 128
 ---
 data:
-  root: "/home/data/kbh/SPEAR_seg/"
+  root: "/home/data2/kbh/SPEAR_seg/"
+  dataset : [1,2,3,4]
+  len_sec : 5
   sr : 16000
+  augment :
+    clean : False
+    noise : False
+    RIR : False
+    SNR : [-10,15]
+    dBFS : [-60, -30]
+    root_RIR : "/home/data2/kbh/impulse_responses/"
+    root_clean : "/home/data2/kbh/DNS-Challenge/datasets/clean"
+    root_noise : "/home/data2/kbh/DNS-Challenge/datasets/noise"
 ---
   log:
     root: '/home/nas/user/kbh/SPEAR'

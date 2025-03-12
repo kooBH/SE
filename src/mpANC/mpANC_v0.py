@@ -503,7 +503,12 @@ class mpANC_v0_helper(nn.Module):
         self.model = mpANC_v0()
         self.frame_size = 512
         self.hop_size = 128
+        PI = 3.14159265358979323846
+
+        # Regularized Hann window for 128/512
         self.window = torch.hann_window(self.frame_size)
+        for i in range(self.frame_size) : 
+            self.window[i] = torch.tensor(0.5 * (1.0 - np.cos(2.0 * PI * i / self.frame_size)) / np.sqrt((self.frame_size* 0.3750) / self.hop_size))
 
     def _to_spec(self,x):
         B,L = x.shape
