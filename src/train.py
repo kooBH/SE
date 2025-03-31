@@ -18,6 +18,8 @@ from utils.writer import MyWriter
 from utils.Loss import wSDRLoss,mwMSELoss,LevelInvariantNormalizedLoss
 from utils.metric import run_metric
 
+from ptflops import get_model_complexity_info
+
 from common import run,get_model, evaluate
 
 if __name__ == '__main__':
@@ -53,7 +55,9 @@ if __name__ == '__main__':
     num_workers = hp.train.num_workers
 
     best_loss = 1e7
-    best_pesq = 0.0
+    best_metric = {}
+    for m in hp.log.eval : 
+        best_metric[m] = 0.0
 
     ## load
     modelsave_path = hp.log.root +'/'+'chkpt' + '/' + version
@@ -141,6 +145,28 @@ if __name__ == '__main__':
     test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
 
     model = get_model(hp,device=device)
+    if hp.model.type == "TRUMEA" : 
+        if hp.audio.n_hop == 128 : 
+            T = 125
+        else : 
+            T = 250
+
+        import sys
+        class HiddenPrints:
+            def __enter__(self):
+                return
+                self._original_stdout = sys.stdout
+                sys.stdout = open(os.devnull, 'w')
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                return
+                sys.stdout.close()
+                sys.stdout = self._original_stdout
+
+        with HiddenPrints() :
+            macs_ptflos, params_ptflops = get_model_complexity_info(model.helper, (hp.audio.n_fft//2+1,T,2), as_strings=False,                                           print_per_layer_stat=False,
+        verbose=False)   
+        print("ptflops : MACS {} |  PARAM {}".format(macs_ptflos,params_ptflops))
 
     if not args.chkpt == None : 
         print('NOTE::Loading pre-trained model : '+ args.chkpt)
@@ -175,6 +201,9 @@ if __name__ == '__main__':
        scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.scheduler.CosineAnnealingLR.T_max, eta_min=hp.scheduler.CosineAnnealingLR.eta_min) 
     elif hp.scheduler.type == "StepLR" :
         scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hp.scheduler.StepLR.step_size, gamma=hp.scheduler.StepLR.gamma)
+    elif hp.scheduler.type == "Fixed" : 
+        from torch.optim.lr_scheduler import LambdaLR
+        scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
     else :
         raise Exception("Unsupported sceduler type : {}".format(hp.scheduler.type))
     
@@ -228,6 +257,7 @@ if __name__ == '__main__':
             SE task. 
             """
 #            with torch.cuda.amp.autocast():
+
             loss = run(hp,data,model,criterion,device=device)
             if loss is None : 
                 print("Warning::zero loss")
@@ -324,9 +354,10 @@ if __name__ == '__main__':
             for m in hp.log.eval : 
                 writer.log_value(metric_dns[m],step,m+"_DNS")
 
-            if metric_dns["PESQ_WB"] > best_pesq : 
-                best_pesq = metric_dns["PESQ_WB"]
-                torch.save(model.state_dict(), str(modelsave_path)+"/best_pesq.pt")
+                if metric_dns[m] > best_metric[m] : 
+                    best_metric[m] = metric_dns[m]
+                    torch.save(model.state_dict(), str(modelsave_path)+f"/best_{m}.pt")
+
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 
             #if device == "cuda:1":
