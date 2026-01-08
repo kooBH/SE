@@ -7,7 +7,6 @@ from utils.hparams import HParam
 from common import get_model
 from tqdm.auto import tqdm
 
-
 if __name__ == "__main__" :
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, required=True,
@@ -35,6 +34,7 @@ if __name__ == "__main__" :
     for path in tqdm(list_data) : 
         base_dir = os.path.dirname(path)
         base_dir = base_dir.replace(args.dir_in,args.dir_out)
+        os.makedirs(base_dir,exist_ok=True)
 
         data = rs.load(path,sr=hp.data.sr)[0]
         data = torch.unsqueeze(torch.from_numpy(data),0).to(device)

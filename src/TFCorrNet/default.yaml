@@ -1,0 +1,160 @@
+task : DNS
+---
+model:
+  #type : mpANC_v0_mamba
+  type : TF_CorrNet_SE
+---
+train:
+  epoch: 1000
+  batch_size: 1 #32
+  num_workers: 0 #16
+  optimizer: 'AdamW'
+  Adam: 0.001
+  adabound:
+    initial: 0.001
+    final: 0.05
+  AdamW:
+    lr: 0.001
+  summary_interval: 500
+  validation_interval: 100
+  checkpoint_interval: 1000
+---
+loss:
+  #type: 'TRUNetLoss'
+  #type : "mwMSELoss+wSDRLoss"
+  #type : "MultiLoss2"
+  type : "MultiWhisperLoss"
+  wSDRLoss :
+    alpha : 0.99
+  mwMSELoss : 
+    alpha : 0.9
+  wSDRLoss :
+    alpha : 0.99
+  HybridLoss :
+    alpha : 0.9
+  TRUNetLoss :
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+  MultiLoss1 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    frame_size_aw : [1024,512,256]
+  MultiLoss2 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    weight_spec : 15
+    weight_sdr : 1
+  MultiWhisperLoss :
+    frame_size_spec : [1024, 512, 256]
+
+---
+scheduler: # Plateau, oneCycle, CosineAnnealingLR, LinearPerEpoch, StepLR
+  type: 'CosineAnnealingLR'
+  use_warmup : True
+  oneCycle:
+    max_lr: 0.001
+  Plateau:
+    mode: 'min'
+    patience: 2
+    factor: 0.5
+    min_lr: 0.000005
+  CosineAnnealingLR : 
+    T_max : 2
+    eta_min : 0.000005
+  StepLR :
+    step_size : 3
+    gamma : 0.1
+---
+audio :
+  n_fft : 512
+  n_hop : 128
+---
+stft:
+  frame_length: 512
+  frame_shift: 128
+---
+data:
+  RIR : "/mnt/hdisk1/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
+  clean : "/mnt/hdisk1/DNS-Challenge-16kHz/datasets_fullband/clean_fullband" #, "/home/nas/DB/aihub-dataset/kor"]
+  noise : "/mnt/hdisk1/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
+
+  dev : 
+    root : "/mnt/hdisk1/training_set_sept12_16k/"
+  eval :
+    clean : "/mnt/hdisk1/Voicebank+Demand/clean_testset_wav"
+    noisy : "/mnt/hdisk1/Voicebank+Demand/noisy_testset_wav"
+    DNS : "/mnt/hdisk1/DNS2020/test_set/synthetic/no_reverb"
+  len_data : 49152 # 4096 * 12
+  n_item : 65536
+  use_RIR : True
+  deverb_clean : False
+  RIR_prob : 0.1
+  sr : 16000
+  SNR : [-5, 30]
+  target_dB_FS : -25
+  target_dB_FS_floating_value : 10
+  prob_spk : [0.1, 0.9]
+  #prob_spk : [0.1, 0.1, 0.8] # adapter 용
+  adapter : False
+  range_multitalk : [0.2, 0.8]
+  residual_clean :
+    use : False
+    SNR : [-5,30]
+  
+---
+log:
+  root: './log'
+  plot_wav : True
+  plot_spec : True
+  dev : ["PESQ","SISDR"]
+  eval : ["PESQ_WB","SISDR"]
+  n_dev : 361
+---
+TF_CorrNet:
+  ISCM_embedding:
+    beta_type: 'vector' # vector, scalar, fixed_mag, fixed_no
+    d_freq:  &num_frequency_bin 257 # win/2+1
+    d_model: &var_model_channels 64
+    num_mics: &var_model_num_mics 1
+  multi_path_block:
+    channel_module:
+      d_model: *var_model_channels
+      n_head: &var_model_n_head_channel_module 4
+      kernel_size: 65
+      dropout_rate: 0.05
+    spectral_module:
+      d_model: *var_model_channels
+      n_head: &var_model_n_head_spectral_module 4
+      kernel_size: 65
+      dropout_rate: 0.05
+    low_rank_module:
+      d_model: *var_model_channels
+      d_proj: 16
+      d_freq: *num_frequency_bin
+      d_embed: &dim_low_rank 64
+      n_head: &var_model_n_head_low_rank_module 4
+      kernel_size: 65
+      dropout_rate: 0.05
+  relative_positional_encoding:
+    channel_module:
+      d_model: *var_model_channels
+      n_head: *var_model_n_head_channel_module
+      maxlen: 1000
+      embed_v: false
+    spectral_module:
+      d_model: *var_model_channels
+      n_head: *var_model_n_head_spectral_module
+      maxlen: 513
+      embed_v: false
+    low_rank_module:
+      d_model: *dim_low_rank
+      n_head: *var_model_n_head_low_rank_module
+      maxlen: 1000
+      embed_v: false
+  N_repeat: 4
+  seq_down_factor: 4 #! new feature of EGA module in Gloabl-Local Transformer
+  mask_estimator:
+    d_model: *var_model_channels
+    #num_spks: &var_model_num_spks 2
+    num_mics: *var_model_num_mics
+    frame_win_len: 3

@@ -1,6 +1,8 @@
 import os
 import torch
 import torch.nn as nn
+import numpy as np
+import random
 
 from UNet.UNet import UNet
 from UNet.ResUNet import ResUNetOnFreq, ResUNet, ResUNetOnFreq2
@@ -46,9 +48,9 @@ def get_model(hp,device="cuda:0"):
             hp.audio.n_hop,
             architecture=hp.model.architecture,
             kernel_type = hp.model.kernel_type,
-            skipGRU= hp.model.skipGRU,
+            #skipGRU= hp.model.skipGRU,
             phase_encoder=hp.model.phase_encoder,
-            T_FGRU=hp.model.T_FGRU,
+            #T_FGRU=hp.model.T_FGRU,
             type_TBlock=hp.model.type_TBlock,
             type_FBlock=hp.model.type_FBlock,
             type_CBlock=hp.model.type_CBlock,
@@ -75,7 +77,7 @@ def get_model(hp,device="cuda:0"):
     elif hp.model.type == "CUNet" : 
         model = CUNet_helper(**hp.model).to(device)
     elif hp.model.type == "mpANC_v0" : 
-        from mpANC.mpANC_v0 import mpANC_v0_helper
+        from mpSE.mpANC_v0 import mpANC_v0_helper
         model = mpANC_v0_helper().to(device)
     elif hp.model.type == "ULCNet":
         from ULCNet.ULCNet import ULCNet_helper
@@ -83,11 +85,73 @@ def get_model(hp,device="cuda:0"):
     elif hp.model.type == "DDUNet" : 
         from mpSE.DDUNet import DDUNet_helper
         model = DDUNet_helper(**hp.model).to(device)
+    elif hp.model.type == "DF" : 
+        from df.DF import DF_helper
+        model = DF_helper().to(device)
+    elif hp.model.type =="SimpleNet":
+        from SimpleNet.SimpleNet import SimpleNetHelper
+        model = SimpleNetHelper(config=hp).to(device)
+    elif hp.model.type == "mpNC_S" : 
+        from mpSE.mpNC_S import mpNC_S_wrapper
+        model = mpNC_S_wrapper(
+            frame_size = hp.audio.n_fft,
+            hop_size = hp.audio.n_hop,
+            architecture=hp.model.architecture,
+            type_SE=hp.model.type_SE,
+            type_TBlock=hp.model.type_TBlock,
+            type_FBlock=hp.model.type_FBlock,
+            type_CBlock=hp.model.type_CBlock,
+            type_skip = hp.model.type_skip,
+            type_encoder = hp.model.type_encoder,
+            type_decoder = hp.model.type_decoder,
+            CR_use=hp.model.CR.use,
+            CR_n_band=hp.model.CR.n_band,
+            CR_overlap=hp.model.CR.overlap,
+            type_window=hp.model.type_window).to(device)
     elif hp.model.type =="None":
         model = nn.Identity()
+    elif hp.model.type == "mpANCv1" :
+        from mpSE.mpANCv1 import mpANCv1_helper
+        model = mpANCv1_helper().to(device)
+    elif hp.model.type == "mpNF" :
+        from mpNF.mpNF import mpNF_helper
+        model = mpNF_helper(
+            sr = hp.audio.sr,
+            n_fft= hp.audio.n_fft,
+            n_hop= hp.audio.n_hop,
+            n_erb= hp.model.n_erb,
+            n_df= hp.model.n_df,
+            arch = hp.model.architecture,
+            type_window = hp.model.type_window,
+            normalize=hp.model.normalize
+            ).to(device)
+    elif hp.model.type =="mpTF" : 
+        from mpNF.mpTF import mpTF_helper
+        model = mpTF_helper(
+            sr = hp.audio.sr,
+            n_fft= hp.audio.n_fft,
+            n_hop= hp.audio.n_hop,
+            n_erb= hp.model.n_erb,
+            n_dfh= hp.model.n_dfh,
+            n_dfl= hp.model.n_dfl,
+            arch = hp.model.architecture,
+            type_window = hp.model.type_window,
+            normalize=hp.model.normalize
+            ).to(device)
+    elif hp.model.type == "LSNRNet" :
+        from LSNR.LSNRNet import LSNRNetHelper
+        model = LSNRNetHelper(architecture=hp.model.architecture).to(device)
+    elif hp.model.type == "GTCRN"  : 
+        from refs.GTCRN import GTCRNHelper
+        model = GTCRNHelper().to(device)
+    elif hp.model.type == "SE_T1" :
+        from mpSE.SE_T1 import SE_T1_helper
+        model = SE_T1_helper(architecture=hp.model.architecture).to(device)
+    elif hp.model.type == "mpNC" : 
+        from mpSE.mpNC import mpNC_helper
+        model = mpNC_helper(hp=hp).to(device)
     else : 
         raise Exception("ERROR::Unknown model type : {}".format(hp.model.type))
-
     return model
 
 def run(
@@ -98,6 +162,7 @@ def run(
     ret_output=False,
     device="cuda:0"
     ): 
+
     if hp.model.type == "FullSubNetPlus":
         data["input"][0]=data["input"][0].to(device)
         data["input"][1]=data["input"][1].to(device)
@@ -117,12 +182,6 @@ def run(
         feature = data["noisy"].to(device)
         mask = model(feature)
         estim= model.output(mask,feature)
-    elif hp.model.type =="TRUMEA" : 
-        feature = data["noisy"].to(device)
-        estim = model(feature)
-    elif hp.model.type =="MTFAA" : 
-        feature = data["noisy"].to(device)
-        estim = model(feature)
     else : 
         feature = data["noisy"].to(device)
         estim = model(feature)
@@ -131,8 +190,8 @@ def run(
         return estim
 
     if hp.loss.type =="wSDRLoss" :
-        clean= data["clean"].to(device)
-        noisy= data["noisy"].to(device)
+        clean = data["clean"].to(device)
+        noisy = data["noisy"].to(device)
         """
         if not hp.model.mag_only : 
             estim =  estim
@@ -167,14 +226,13 @@ def run(
 
     if loss.isinf().any() : 
         print("Warning::There is inf in loss, nan_to_num(1e-7)")
-        loss = torch.tensor(0.0).to(loss.device)
+        loss = torch.tensor(1e-7).to(loss.device)
         loss.requires_grad_()
 
     if loss.isnan().any() : 
         print("Warning::There is nan in loss, nan_to_num(1e-7)")
-        loss = torch.tensor(0.0).to(loss.device)
+        loss = torch.tensor(1e-7).to(loss.device)
         loss.requires_grad_()
-        import pdb;pdb.set_trace()
 
     if ret_output :
         return estim, loss
@@ -195,7 +253,8 @@ def evaluate(hp, model,list_data,device="cuda:0"):
             path_clean = pair_data[1]
             noisy = rs.load(path_noisy,sr=hp.data.sr)[0]
             noisy = torch.unsqueeze(torch.from_numpy(noisy),0).to(device)
-            estim = model(noisy).cpu().detach().numpy()[0]
+            estim = run(hp,{"noisy":noisy},model,ret_output=True,device=device).cpu().detach().numpy()[0]
+            #estim = model(noisy).cpu().detach().numpy()[0]
             """
             de Oliveira, Danilo, et al. "The PESQetarian: On the Relevance of Goodhart's Law for Speech Enhancement." arXiv preprint arXiv:2406.03460 (2024).
 
@@ -229,6 +288,40 @@ def evaluate(hp, model,list_data,device="cuda:0"):
             metric[key] /= len(list_data)
     return metric
 
+def evaluate_lsnr(hp, model,list_data,device="cuda:0"):
+    #### EVAL ####
+    model.eval()
+    with torch.no_grad():
+        ## Metric
+        metric = {}
+        for m in hp.log.eval : 
+            metric["{}".format(m)] = 0.0
+
+        for pair_data in list_data : 
+            path_noisy = pair_data[0]
+            path_clean = pair_data[1]
+            noisy = rs.load(path_noisy,sr=hp.data.sr)[0]
+            noisy = torch.unsqueeze(torch.from_numpy(noisy),0).to(device)
+            noisy = torch.nan_to_num(noisy, nan=0.0, posinf=0, neginf=0)
+
+            estim, lsnr = model(noisy)
+            estim = estim.cpu().detach().numpy()[0]
+
+            clean = rs.load(path_clean,sr=hp.data.sr)[0]
+
+            if len(clean) > len(estim) :
+                clean = clean[:len(estim)]
+            else :
+                estim = estim[:len(clean)]
+            for m in hp.log.eval : 
+                val= run_metric(estim,clean,m) 
+                metric["{}".format(m)] += val
+            
+        for m in hp.log.eval : 
+            key = "{}".format(m)
+            metric[key] /= len(list_data)
+    return metric
+
 
 ###### from audio_zen.acoustics.feature
 def mag_phase(complex_tensor):
@@ -242,3 +335,29 @@ def MRI(X):
 
     return mag.float(),real.float(),imag.float()
 
+
+### Seed
+def set_seed(seed: int = 42):
+    if seed == -1:
+        print(f"No Fixed Seed")
+        return
+    print(f"Fixed Seed : {seed}")
+    # Python
+    random.seed(seed)
+
+    # NumPy
+    np.random.seed(seed)
+
+    # PyTorch (CPU)
+    torch.manual_seed(seed)
+
+    # PyTorch (CUDA)
+    torch.cuda.manual_seed(seed)
+    torch.cuda.manual_seed_all(seed)  # multi-GPU 환경
+
+    # CuDNN 설정 (완전한 determinism 보장)
+    torch.backends.cudnn.deterministic = True
+    torch.backends.cudnn.benchmark = False
+
+    # 환경 변수 고정 (hash seed 등)
+    os.environ["PYTHONHASHSEED"] = str(seed)

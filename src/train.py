@@ -1,4 +1,3 @@
-import torch
 import argparse
 import torchaudio
 import os
@@ -6,6 +5,8 @@ import glob
 import numpy as np
 import librosa as rs
 import time
+
+import torch
 
 from tensorboardX import SummaryWriter
 
@@ -20,7 +21,7 @@ from utils.metric import run_metric
 
 from ptflops import get_model_complexity_info
 
-from common import run,get_model, evaluate
+from common import run,get_model, evaluate, set_seed
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -34,6 +35,8 @@ if __name__ == '__main__':
     parser.add_argument('--step','-s',type=int,required=False,default=0)
     parser.add_argument('--device','-d',type=str,required=False,default="cuda:0")
     parser.add_argument('--epoch','-e',type=int,required=False,default=None)
+    parser.add_argument('--batch_size',type=int,required=False,default=None)
+    parser.add_argument('--num_workers',type=int,required=False,default=None)
     args = parser.parse_args()
 
     torch.autograd.set_detect_anomaly(True)
@@ -42,17 +45,24 @@ if __name__ == '__main__':
     print("NOTE::Loading configuration {} based on {}".format(args.config,args.default))
     global device
 
+    set_seed(hp.train.seed)
+
     device = args.device
     version = args.version_name
     torch.cuda.set_device(device)
 
     batch_size = hp.train.batch_size
+    if args.batch_size is not None :
+        batch_size = args.batch_size
+
     if args.epoch is None : 
         num_epochs = hp.train.epoch
     else :
         num_epochs = args.epoch
     print("num_epochs : {}".format(num_epochs))
     num_workers = hp.train.num_workers
+    if args.num_workers is not None :
+        num_workers = args.num_workers
 
     best_loss = 1e7
     best_metric = {}
@@ -64,7 +74,6 @@ if __name__ == '__main__':
     log_dir = hp.log.root+'/'+'log'+'/'+version
     csv_dir = hp.log.root+"/csv/"
     seed_dir = hp.log.root+"/seed/"
-
 
     os.makedirs(modelsave_path,exist_ok=True)
     os.makedirs(log_dir,exist_ok=True)
@@ -87,6 +96,12 @@ if __name__ == '__main__':
     elif hp.loss.type == "mwMSELoss+wSDRLoss" : 
         criterion = [mwMSELoss, wSDRLoss]
         req_clean_spec = True
+    elif hp.loss.type == "MultiscaleSpectrogramLoss" : 
+        from utils.Loss import MultiscaleSpectrogramLoss
+        criterion = MultiscaleSpectrogramLoss(
+            hp.loss.common.frame_size_spec,
+            overlap = hp.loss.common.overlap
+            )
     elif hp.loss.type == "TRUNetLoss":
         from utils.Loss import TrunetLoss
         criterion = TrunetLoss(
@@ -125,6 +140,13 @@ if __name__ == '__main__':
             frame_size_sdr=hp.loss.MultiDecibelLoss.frame_size_sdr,
             weight = hp.loss.MultiDecibelLoss.weight
             )
+    elif hp.loss.type == "ListLoss" : 
+        from utils.Loss import ListLoss
+        criterion = ListLoss(
+            hp.loss,
+            hp.loss.ListLoss.list,
+            hp.loss.ListLoss.weight,
+            )
 
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
@@ -141,32 +163,18 @@ if __name__ == '__main__':
     else :
         raise Exception("ERROR::Unknown task : {}".format(hp.task))
 
-    train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
-    test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
+    if hp.train.seed != -1: 
+        g = torch.Generator()
+        g.manual_seed(hp.train.seed)
+        train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True,generator = g, worker_init_fn = set_seed)
+        test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
+    else : 
+        train_loader = torch.utils.data.DataLoader(dataset=train_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
+        test_loader = torch.utils.data.DataLoader(dataset=test_dataset,batch_size=batch_size,shuffle=True,num_workers=num_workers,pin_memory=True)
 
     model = get_model(hp,device=device)
-    if hp.model.type == "TRUMEA" : 
-        if hp.audio.n_hop == 128 : 
-            T = 125
-        else : 
-            T = 250
-
-        import sys
-        class HiddenPrints:
-            def __enter__(self):
-                return
-                self._original_stdout = sys.stdout
-                sys.stdout = open(os.devnull, 'w')
-
-            def __exit__(self, exc_type, exc_val, exc_tb):
-                return
-                sys.stdout.close()
-                sys.stdout = self._original_stdout
-
-        with HiddenPrints() :
-            macs_ptflos, params_ptflops = get_model_complexity_info(model.helper, (hp.audio.n_fft//2+1,T,2), as_strings=False,                                           print_per_layer_stat=False,
-        verbose=False)   
-        print("ptflops : MACS {} |  PARAM {}".format(macs_ptflos,params_ptflops))
+    macs_ptflos, params_ptflops = get_model_complexity_info(model, (16000,), as_strings=False,print_per_layer_stat=False,verbose=False)   
+    print("ptflops : MACS {}M |  PARAM {}K".format(macs_ptflos/1e6,params_ptflops/1e3))
 
     if not args.chkpt == None : 
         print('NOTE::Loading pre-trained model : '+ args.chkpt)
@@ -174,6 +182,7 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(args.chkpt, map_location=device)["model"])
         except KeyError :
             model.load_state_dict(torch.load(args.chkpt, map_location=device))
+    print("Model Initialized.")
 
     if hp.train.optimizer == 'Adam' :
         optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.Adam)
@@ -231,6 +240,12 @@ if __name__ == '__main__':
         path_clean = os.path.join(hp.data.eval.DNS,"clean","clean_fileid_{}.wav".format(fileid))
         list_DNS.append((path_noisy,path_clean))
 
+    list_white = []
+    for path_noisy in glob.glob(os.path.join(hp.data.eval.white,"noisy","*.wav")) : 
+        fname = os.path.basename(path_noisy)
+        path_clean = os.path.join(hp.data.eval.white,"clean",fname)
+        list_white.append((path_noisy,path_clean))
+
     ## scaler - may occur issue
 
     scaler = torch.cuda.amp.GradScaler()
@@ -238,7 +253,6 @@ if __name__ == '__main__':
     print("len dataset : {}".format(len(test_dataset)))
 
     writer = MyWriter(log_dir)
-
 
     for epoch in range(num_epochs):
         ### TRAIN ####
@@ -260,7 +274,7 @@ if __name__ == '__main__':
 
             loss = run(hp,data,model,criterion,device=device)
             if loss is None : 
-                print("Warning::zero loss")
+                print("Warning::None loss")
                 continue
             optimizer.zero_grad()
 
@@ -269,14 +283,16 @@ if __name__ == '__main__':
             #scaler.update()
 
             try : 
-                loss.backward()
-            except RuntimeError as e:
-                #import pdb
-                #pdb.set_trace()
-                print("RuntimeERror!! : {}".format(e))
-                continue
+                if type(loss) is not list : 
+                        loss.backward()
 
-            #torch.nn.utils.clip_grad_norm_(model.parameters(), 5)
+                else :
+                    for l in loss : 
+                        l.backward()
+            except RuntimeError as e :
+                print("RuntimeError::{} at train epoch {} step {}".format(e,epoch,step))
+
+            torch.nn.utils.clip_grad_norm_(model.parameters(), 1.0)
             optimizer.step()
 
             if hp.scheduler.type == 'LinearPerEpoch' :
@@ -285,21 +301,21 @@ if __name__ == '__main__':
             train_loss += loss.item()
             log_loss += loss.item()
 
-            if cnt_log %  hp.train.summary_interval == 0:
+            if cnt_log //  hp.train.summary_interval > 0:
                 log_loss /= max(cnt_log,1)
-                print('TRAIN::{} : Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(version,epoch+1, num_epochs, i+1, len(train_loader), log_loss))
+                print('TRAIN::{} : Epoch [{}/{}], Step [{}/{}], Loss: {:.4e}'.format(version,epoch+1, num_epochs, i+1, len(train_loader), log_loss))
                 writer.log_value(log_loss,step,'train loss : '+hp.loss.type)
 
                 log_loss = 0
                 cnt_log =  0
-            if device == "cuda:1":
-                time.sleep(0.01)
+            time.sleep(0.01)
             cnt_log += batch_size
 
         train_loss = train_loss/len(train_loader)
         torch.save(model.state_dict(), str(modelsave_path)+'/lastmodel.pt')
             
         #### EVAL ####
+        cnt_eval = 0
         model.eval()
         with torch.no_grad():
             test_loss =0.
@@ -345,18 +361,23 @@ if __name__ == '__main__':
                 torch.save(model.state_dict(), str(modelsave_path)+'/bestmodel.pt')
                 best_loss = test_loss
 
-            ## Metric
-            metric = evaluate(hp,model,list_eval,device=device)
-            for m in hp.log.eval : 
-                writer.log_value(metric[m],step,m+"_VD")
+            if epoch % hp.train.eval_interval == 0 or epoch == num_epochs-1:
+                ## Metric
+                metric = evaluate(hp,model,list_eval,device=device)
+                for m in hp.log.eval : 
+                    writer.log_value(metric[m],step,m+"_VD")
 
-            metric_dns = evaluate(hp,model,list_DNS,device=device)
-            for m in hp.log.eval : 
-                writer.log_value(metric_dns[m],step,m+"_DNS")
+                metric_dns = evaluate(hp,model,list_DNS,device=device)
+                for m in hp.log.eval : 
+                    writer.log_value(metric_dns[m],step,m+"_DNS")
 
-                if metric_dns[m] > best_metric[m] : 
-                    best_metric[m] = metric_dns[m]
-                    torch.save(model.state_dict(), str(modelsave_path)+f"/best_{m}.pt")
+                    if metric_dns[m] > best_metric[m] : 
+                        best_metric[m] = metric_dns[m]
+                        torch.save(model.state_dict(), str(modelsave_path)+f"/best_{m}.pt")
+
+                metric_white = evaluate(hp,model,list_white,device=device)
+                for m in hp.log.eval : 
+                    writer.log_value(metric_white[m],step,m+"_white")
 
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 
