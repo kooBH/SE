@@ -1,0 +1,498 @@
+ONNX Model Structure:
+=====================
+graph torch_jit (
+  %inputs[FLOAT, 1x257x1x2]
+  %gru_state_in[FLOAT, 1x17x128]
+  %pe_state_in[FLOAT, 1x257x2x2]
+) initializers (
+  %PE.complexnn.1.real_conv.weight[FLOAT, 4x1x1x3]
+  %PE.complexnn.1.real_conv.bias[FLOAT, 4]
+  %PE.complexnn.1.imag_conv.weight[FLOAT, 4x1x1x3]
+  %PE.complexnn.1.imag_conv.bias[FLOAT, 4]
+  %down1.conv.weight[FLOAT, 64x4x1x5]
+  %down1.conv.bias[FLOAT, 64]
+  %up6.conv_up.weight[FLOAT, 64x64x1x3]
+  %up6.conv_up.bias[FLOAT, 64]
+  %up6.bn_up.weight[FLOAT, 64]
+  %up6.bn_up.bias[FLOAT, 64]
+  %up6.bn_up.running_mean[FLOAT, 64]
+  %up6.bn_up.running_var[FLOAT, 64]
+  %up5.conv_up.weight[FLOAT, 64x64x1x5]
+  %up5.conv_up.bias[FLOAT, 64]
+  %up5.bn_up.weight[FLOAT, 64]
+  %up5.bn_up.bias[FLOAT, 64]
+  %up5.bn_up.running_mean[FLOAT, 64]
+  %up5.bn_up.running_var[FLOAT, 64]
+  %up4.conv_up.weight[FLOAT, 64x64x1x3]
+  %up4.conv_up.bias[FLOAT, 64]
+  %up4.bn_up.weight[FLOAT, 64]
+  %up4.bn_up.bias[FLOAT, 64]
+  %up4.bn_up.running_mean[FLOAT, 64]
+  %up4.bn_up.running_var[FLOAT, 64]
+  %up3.conv_up.weight[FLOAT, 64x64x1x5]
+  %up3.conv_up.bias[FLOAT, 64]
+  %up3.bn_up.weight[FLOAT, 64]
+  %up3.bn_up.bias[FLOAT, 64]
+  %up3.bn_up.running_mean[FLOAT, 64]
+  %up3.bn_up.running_var[FLOAT, 64]
+  %up2.conv_up.weight[FLOAT, 64x64x1x3]
+  %up2.conv_up.bias[FLOAT, 64]
+  %up2.bn_up.weight[FLOAT, 64]
+  %up2.bn_up.bias[FLOAT, 64]
+  %up2.bn_up.running_mean[FLOAT, 64]
+  %up2.bn_up.running_var[FLOAT, 64]
+  %up1.conv_up.weight[FLOAT, 4x4x1x5]
+  %up1.conv_up.bias[FLOAT, 4]
+  %mea.kernel[FLOAT, 3x1x3x1]
+  %mea.mag_mask.weight[FLOAT, 3x4x3x1]
+  %mea.mag_mask.bias[FLOAT, 3]
+  %mea.real_mask.weight[FLOAT, 1x4x3x1]
+  %mea.real_mask.bias[FLOAT, 1]
+  %mea.imag_mask.weight[FLOAT, 1x4x3x1]
+  %mea.imag_mask.bias[FLOAT, 1]
+  %onnx::Conv_811[FLOAT, 128x64x1x1]
+  %onnx::Conv_812[FLOAT, 128]
+  %onnx::Conv_814[FLOAT, 128x1x1x3]
+  %onnx::Conv_815[FLOAT, 128]
+  %onnx::Conv_817[FLOAT, 128x128x1x1]
+  %onnx::Conv_818[FLOAT, 128]
+  %onnx::Conv_820[FLOAT, 128x1x1x5]
+  %onnx::Conv_821[FLOAT, 128]
+  %onnx::Conv_823[FLOAT, 128x128x1x1]
+  %onnx::Conv_824[FLOAT, 128]
+  %onnx::Conv_826[FLOAT, 128x1x1x3]
+  %onnx::Conv_827[FLOAT, 128]
+  %onnx::Conv_829[FLOAT, 128x128x1x1]
+  %onnx::Conv_830[FLOAT, 128]
+  %onnx::Conv_832[FLOAT, 128x1x1x5]
+  %onnx::Conv_833[FLOAT, 128]
+  %onnx::Conv_835[FLOAT, 128x128x1x1]
+  %onnx::Conv_836[FLOAT, 128]
+  %onnx::Conv_838[FLOAT, 128x1x1x3]
+  %onnx::Conv_839[FLOAT, 128]
+  %onnx::Conv_841[FLOAT, 64x128x1x1]
+  %onnx::Conv_842[FLOAT, 64]
+  %onnx::Conv_844[FLOAT, 64x128x1x1]
+  %onnx::Conv_845[FLOAT, 64]
+  %onnx::Conv_847[FLOAT, 64x192x1x1]
+  %onnx::Conv_848[FLOAT, 64]
+  %onnx::Conv_850[FLOAT, 64x192x1x1]
+  %onnx::Conv_851[FLOAT, 64]
+  %onnx::Conv_853[FLOAT, 64x192x1x1]
+  %onnx::Conv_854[FLOAT, 64]
+  %onnx::Conv_856[FLOAT, 64x192x1x1]
+  %onnx::Conv_857[FLOAT, 64]
+  %onnx::Conv_859[FLOAT, 64x192x1x1]
+  %onnx::Conv_860[FLOAT, 64]
+  %onnx::Conv_862[FLOAT, 4x128x1x1]
+  %onnx::Conv_863[FLOAT, 4]
+  %onnx::GRU_916[FLOAT, 2x384]
+  %onnx::GRU_917[FLOAT, 2x192x128]
+  %onnx::GRU_918[FLOAT, 2x192x64]
+  %onnx::GRU_937[FLOAT, 1x384x64]
+  %onnx::GRU_938[FLOAT, 1x384x128]
+  %onnx::GRU_939[FLOAT, 1x768]
+) {
+  %/Concat_output_0 = Concat[axis = -2](%pe_state_in, %inputs)
+  %/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/Constant_1_output_0 = Constant[value = <Tensor>]()
+  %/Constant_2_output_0 = Constant[value = <Tensor>]()
+  %/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %pe_state_out = Slice(%/Concat_output_0, %/Constant_2_output_0, %/Constant_3_output_0, %/Constant_1_output_0, %/Constant_4_output_0)
+  %/Constant_5_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/Transpose_output_0 = Transpose[perm = [0, 3, 1, 2]](%/Concat_output_0)
+  %/PE/complexnn/complexnn.0/Constant_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Constant_1_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/ConstantOfShape_output_0 = ConstantOfShape[value = <Tensor>](%/PE/complexnn/complexnn.0/Constant_output_0)
+  %/PE/complexnn/complexnn.0/Concat_output_0 = Concat[axis = 0](%/PE/complexnn/complexnn.0/Constant_1_output_0, %/PE/complexnn/complexnn.0/ConstantOfShape_output_0)
+  %/PE/complexnn/complexnn.0/Constant_2_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Reshape_output_0 = Reshape[allowzero = 0](%/PE/complexnn/complexnn.0/Concat_output_0, %/PE/complexnn/complexnn.0/Constant_2_output_0)
+  %/PE/complexnn/complexnn.0/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Constant_5_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Constant_6_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Slice_output_0 = Slice(%/PE/complexnn/complexnn.0/Reshape_output_0, %/PE/complexnn/complexnn.0/Constant_4_output_0, %/PE/complexnn/complexnn.0/Constant_5_output_0, %/PE/complexnn/complexnn.0/Constant_3_output_0, %/PE/complexnn/complexnn.0/Constant_6_output_0)
+  %/PE/complexnn/complexnn.0/Transpose_output_0 = Transpose[perm = [1, 0]](%/PE/complexnn/complexnn.0/Slice_output_0)
+  %/PE/complexnn/complexnn.0/Constant_7_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.0/Reshape_1_output_0 = Reshape[allowzero = 0](%/PE/complexnn/complexnn.0/Transpose_output_0, %/PE/complexnn/complexnn.0/Constant_7_output_0)
+  %/PE/complexnn/complexnn.0/Cast_output_0 = Cast[to = 7](%/PE/complexnn/complexnn.0/Reshape_1_output_0)
+  %/PE/complexnn/complexnn.0/Constant_8_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/PE/complexnn/complexnn.0/Pad_output_0 = Pad[mode = 'constant'](%/Transpose_output_0, %/PE/complexnn/complexnn.0/Cast_output_0, %/PE/complexnn/complexnn.0/Constant_8_output_0)
+  %/PE/complexnn/complexnn.1/Constant_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Constant_1_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/ConstantOfShape_output_0 = ConstantOfShape[value = <Tensor>](%/PE/complexnn/complexnn.1/Constant_output_0)
+  %/PE/complexnn/complexnn.1/Concat_output_0 = Concat[axis = 0](%/PE/complexnn/complexnn.1/Constant_1_output_0, %/PE/complexnn/complexnn.1/ConstantOfShape_output_0)
+  %/PE/complexnn/complexnn.1/Constant_2_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Reshape_output_0 = Reshape[allowzero = 0](%/PE/complexnn/complexnn.1/Concat_output_0, %/PE/complexnn/complexnn.1/Constant_2_output_0)
+  %/PE/complexnn/complexnn.1/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Constant_5_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Constant_6_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Slice_output_0 = Slice(%/PE/complexnn/complexnn.1/Reshape_output_0, %/PE/complexnn/complexnn.1/Constant_4_output_0, %/PE/complexnn/complexnn.1/Constant_5_output_0, %/PE/complexnn/complexnn.1/Constant_3_output_0, %/PE/complexnn/complexnn.1/Constant_6_output_0)
+  %/PE/complexnn/complexnn.1/Transpose_output_0 = Transpose[perm = [1, 0]](%/PE/complexnn/complexnn.1/Slice_output_0)
+  %/PE/complexnn/complexnn.1/Constant_7_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Reshape_1_output_0 = Reshape[allowzero = 0](%/PE/complexnn/complexnn.1/Transpose_output_0, %/PE/complexnn/complexnn.1/Constant_7_output_0)
+  %/PE/complexnn/complexnn.1/Cast_output_0 = Cast[to = 7](%/PE/complexnn/complexnn.1/Reshape_1_output_0)
+  %/PE/complexnn/complexnn.1/Pad_output_0 = Pad[mode = 'constant'](%/PE/complexnn/complexnn.0/Pad_output_0, %/PE/complexnn/complexnn.1/Cast_output_0, %)
+  %/PE/complexnn/complexnn.1/Shape_output_0 = Shape(%/PE/complexnn/complexnn.1/Pad_output_0)
+  %/PE/complexnn/complexnn.1/Constant_8_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Gather_output_0 = Gather[axis = 0](%/PE/complexnn/complexnn.1/Shape_output_0, %/PE/complexnn/complexnn.1/Constant_8_output_0)
+  %/PE/complexnn/complexnn.1/Constant_9_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Constant_10_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Add_output_0 = Add(%/PE/complexnn/complexnn.1/Gather_output_0, %/PE/complexnn/complexnn.1/Constant_10_output_0)
+  %/PE/complexnn/complexnn.1/Constant_11_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Div_output_0 = Div(%/PE/complexnn/complexnn.1/Add_output_0, %/PE/complexnn/complexnn.1/Constant_11_output_0)
+  %/PE/complexnn/complexnn.1/Constant_12_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Mul_output_0 = Mul(%/PE/complexnn/complexnn.1/Div_output_0, %/PE/complexnn/complexnn.1/Constant_12_output_0)
+  %/PE/complexnn/complexnn.1/Slice_1_output_0 = Slice(%/PE/complexnn/complexnn.1/Pad_output_0, %/PE/complexnn/complexnn.1/Constant_9_output_0, %/PE/complexnn/complexnn.1/Mul_output_0, %/PE/complexnn/complexnn.1/Constant_8_output_0)
+  %/PE/complexnn/complexnn.1/Constant_13_output_0 = Constant[value = <Tensor>]()
+  %/PE/complexnn/complexnn.1/Mul_1_output_0 = Mul(%/PE/complexnn/complexnn.1/Div_output_0, %/PE/complexnn/complexnn.1/Constant_13_output_0)
+  %/PE/complexnn/complexnn.1/Slice_2_output_0 = Slice(%/PE/complexnn/complexnn.1/Pad_output_0, %/PE/complexnn/complexnn.1/Mul_output_0, %/PE/complexnn/complexnn.1/Mul_1_output_0, %/PE/complexnn/complexnn.1/Constant_8_output_0)
+  %/PE/complexnn/complexnn.1/real_conv/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 0, 0, 0], strides = [1, 1]](%/PE/complexnn/complexnn.1/Slice_1_output_0, %PE.complexnn.1.real_conv.weight, %PE.complexnn.1.real_conv.bias)
+  %/PE/complexnn/complexnn.1/imag_conv/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 0, 0, 0], strides = [1, 1]](%/PE/complexnn/complexnn.1/Slice_2_output_0, %PE.complexnn.1.imag_conv.weight, %PE.complexnn.1.imag_conv.bias)
+  %/PE/complexnn/complexnn.1/imag_conv_1/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 0, 0, 0], strides = [1, 1]](%/PE/complexnn/complexnn.1/Slice_1_output_0, %PE.complexnn.1.imag_conv.weight, %PE.complexnn.1.imag_conv.bias)
+  %/PE/complexnn/complexnn.1/real_conv_1/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 0, 0, 0], strides = [1, 1]](%/PE/complexnn/complexnn.1/Slice_2_output_0, %PE.complexnn.1.real_conv.weight, %PE.complexnn.1.real_conv.bias)
+  %/PE/complexnn/complexnn.1/Sub_output_0 = Sub(%/PE/complexnn/complexnn.1/real_conv/Conv_output_0, %/PE/complexnn/complexnn.1/imag_conv/Conv_output_0)
+  %/PE/complexnn/complexnn.1/Add_1_output_0 = Add(%/PE/complexnn/complexnn.1/imag_conv_1/Conv_output_0, %/PE/complexnn/complexnn.1/real_conv_1/Conv_output_0)
+  %/PE/complexnn/complexnn.1/Concat_1_output_0 = Concat[axis = 1](%/PE/complexnn/complexnn.1/Sub_output_0, %/PE/complexnn/complexnn.1/Add_1_output_0)
+  %/PE/Shape_output_0 = Shape(%/PE/complexnn/complexnn.1/Concat_1_output_0)
+  %/PE/Constant_output_0 = Constant[value = <Tensor>]()
+  %/PE/Gather_output_0 = Gather[axis = 0](%/PE/Shape_output_0, %/PE/Constant_output_0)
+  %/PE/Constant_1_output_0 = Constant[value = <Tensor>]()
+  %/PE/Constant_2_output_0 = Constant[value = <Tensor>]()
+  %/PE/Add_output_0 = Add(%/PE/Gather_output_0, %/PE/Constant_2_output_0)
+  %/PE/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/PE/Div_output_0 = Div(%/PE/Add_output_0, %/PE/Constant_3_output_0)
+  %/PE/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %/PE/Mul_output_0 = Mul(%/PE/Div_output_0, %/PE/Constant_4_output_0)
+  %/PE/Slice_output_0 = Slice(%/PE/complexnn/complexnn.1/Concat_1_output_0, %/PE/Constant_1_output_0, %/PE/Mul_output_0, %/PE/Constant_output_0)
+  %/PE/Constant_5_output_0 = Constant[value = <Tensor>]()
+  %/PE/Mul_1_output_0 = Mul(%/PE/Div_output_0, %/PE/Constant_5_output_0)
+  %/PE/Slice_1_output_0 = Slice(%/PE/complexnn/complexnn.1/Concat_1_output_0, %/PE/Mul_output_0, %/PE/Mul_1_output_0, %/PE/Constant_output_0)
+  %/PE/clp/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/PE/clp/Pow_output_0 = Pow(%/PE/Slice_output_0, %/PE/clp/Constant_output_0)
+  %/PE/clp/Constant_1_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/PE/clp/Pow_1_output_0 = Pow(%/PE/Slice_1_output_0, %/PE/clp/Constant_1_output_0)
+  %/PE/clp/Add_output_0 = Add(%/PE/clp/Pow_output_0, %/PE/clp/Pow_1_output_0)
+  %/PE/clp/Constant_2_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/PE/clp/Add_1_output_0 = Add(%/PE/clp/Add_output_0, %/PE/clp/Constant_2_output_0)
+  %/PE/clp/Sqrt_output_0 = Sqrt(%/PE/clp/Add_1_output_0)
+  %/PE/Constant_6_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/PE/Pow_output_0 = Pow(%/PE/clp/Sqrt_output_0, %/PE/Constant_6_output_0)
+  %/Transpose_1_output_0 = Transpose[perm = [0, 1, 3, 2]](%/PE/Pow_output_0)
+  %/down1/conv/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/Transpose_1_output_0, %down1.conv.weight, %down1.conv.bias)
+  %/down1/Relu_output_0 = Relu(%/down1/conv/Conv_output_0)
+  %/down2/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/down1/Relu_output_0, %onnx::Conv_811, %onnx::Conv_812)
+  %/down2/Relu_output_0 = Relu(%/down2/conv_point/Conv_output_0)
+  %/down2/conv_depth/Conv_output_0 = Conv[dilations = [1, 1], group = 128, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 1]](%/down2/Relu_output_0, %onnx::Conv_814, %onnx::Conv_815)
+  %/down2/Relu_1_output_0 = Relu(%/down2/conv_depth/Conv_output_0)
+  %/down3/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/down2/Relu_1_output_0, %onnx::Conv_817, %onnx::Conv_818)
+  %/down3/Relu_output_0 = Relu(%/down3/conv_point/Conv_output_0)
+  %/down3/conv_depth/Conv_output_0 = Conv[dilations = [1, 1], group = 128, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/down3/Relu_output_0, %onnx::Conv_820, %onnx::Conv_821)
+  %/down3/Relu_1_output_0 = Relu(%/down3/conv_depth/Conv_output_0)
+  %/down4/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/down3/Relu_1_output_0, %onnx::Conv_823, %onnx::Conv_824)
+  %/down4/Relu_output_0 = Relu(%/down4/conv_point/Conv_output_0)
+  %/down4/conv_depth/Conv_output_0 = Conv[dilations = [1, 1], group = 128, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 1]](%/down4/Relu_output_0, %onnx::Conv_826, %onnx::Conv_827)
+  %/down4/Relu_1_output_0 = Relu(%/down4/conv_depth/Conv_output_0)
+  %/down5/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/down4/Relu_1_output_0, %onnx::Conv_829, %onnx::Conv_830)
+  %/down5/Relu_output_0 = Relu(%/down5/conv_point/Conv_output_0)
+  %/down5/conv_depth/Conv_output_0 = Conv[dilations = [1, 1], group = 128, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/down5/Relu_output_0, %onnx::Conv_832, %onnx::Conv_833)
+  %/down5/Relu_1_output_0 = Relu(%/down5/conv_depth/Conv_output_0)
+  %/down6/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/down5/Relu_1_output_0, %onnx::Conv_835, %onnx::Conv_836)
+  %/down6/Relu_output_0 = Relu(%/down6/conv_point/Conv_output_0)
+  %/down6/conv_depth/Conv_output_0 = Conv[dilations = [1, 1], group = 128, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 2]](%/down6/Relu_output_0, %onnx::Conv_838, %onnx::Conv_839)
+  %/down6/Relu_1_output_0 = Relu(%/down6/conv_depth/Conv_output_0)
+  %/fgru/Shape_output_0 = Shape(%/down6/Relu_1_output_0)
+  %/fgru/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/fgru/Gather_output_0 = Gather[axis = 0](%/fgru/Shape_output_0, %/fgru/Constant_output_0)
+  %/fgru/Shape_1_output_0 = Shape(%/down6/Relu_1_output_0)
+  %/fgru/Constant_1_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/fgru/Gather_1_output_0 = Gather[axis = 0](%/fgru/Shape_1_output_0, %/fgru/Constant_1_output_0)
+  %/fgru/Shape_2_output_0 = Shape(%/down6/Relu_1_output_0)
+  %/fgru/Constant_2_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/fgru/Gather_2_output_0 = Gather[axis = 0](%/fgru/Shape_2_output_0, %/fgru/Constant_2_output_0)
+  %/fgru/Shape_3_output_0 = Shape(%/down6/Relu_1_output_0)
+  %/fgru/Constant_3_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/fgru/Gather_3_output_0 = Gather[axis = 0](%/fgru/Shape_3_output_0, %/fgru/Constant_3_output_0)
+  %/fgru/Transpose_output_0 = Transpose[perm = [0, 2, 3, 1]](%/down6/Relu_1_output_0)
+  %/fgru/Mul_output_0 = Mul(%/fgru/Gather_output_0, %/fgru/Gather_2_output_0)
+  %onnx::Unsqueeze_345 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_output_0 = Unsqueeze(%/fgru/Mul_output_0, %onnx::Unsqueeze_345)
+  %onnx::Unsqueeze_347 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_1_output_0 = Unsqueeze(%/fgru/Gather_3_output_0, %onnx::Unsqueeze_347)
+  %onnx::Unsqueeze_349 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_2_output_0 = Unsqueeze(%/fgru/Gather_1_output_0, %onnx::Unsqueeze_349)
+  %/fgru/Concat_output_0 = Concat[axis = 0](%/fgru/Unsqueeze_output_0, %/fgru/Unsqueeze_1_output_0, %/fgru/Unsqueeze_2_output_0)
+  %/fgru/Reshape_output_0 = Reshape[allowzero = 0](%/fgru/Transpose_output_0, %/fgru/Concat_output_0)
+  %/fgru/GRU/Shape_output_0 = Shape(%/fgru/Reshape_output_0)
+  %/fgru/GRU/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/fgru/GRU/Gather_output_0 = Gather[axis = 0](%/fgru/GRU/Shape_output_0, %/fgru/GRU/Constant_output_0)
+  %/fgru/GRU/Constant_1_output_0 = Constant[value = <Tensor>]()
+  %onnx::Unsqueeze_359 = Constant[value = <Tensor>]()
+  %/fgru/GRU/Unsqueeze_output_0 = Unsqueeze(%/fgru/GRU/Gather_output_0, %onnx::Unsqueeze_359)
+  %/fgru/GRU/Constant_2_output_0 = Constant[value = <Tensor>]()
+  %/fgru/GRU/Concat_output_0 = Concat[axis = 0](%/fgru/GRU/Constant_1_output_0, %/fgru/GRU/Unsqueeze_output_0, %/fgru/GRU/Constant_2_output_0)
+  %/fgru/GRU/ConstantOfShape_output_0 = ConstantOfShape[value = <Tensor>](%/fgru/GRU/Concat_output_0)
+  %/fgru/GRU/Transpose_output_0 = Transpose[perm = [1, 0, 2]](%/fgru/Reshape_output_0)
+  %/fgru/GRU/GRU_output_0, %/fgru/GRU/GRU_output_1 = GRU[direction = 'bidirectional', hidden_size = 64, linear_before_reset = 1](%/fgru/GRU/Transpose_output_0, %onnx::GRU_917, %onnx::GRU_918, %onnx::GRU_916, %, %/fgru/GRU/ConstantOfShape_output_0)
+  %/fgru/GRU/Transpose_1_output_0 = Transpose[perm = [0, 2, 1, 3]](%/fgru/GRU/GRU_output_0)
+  %/fgru/GRU/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/fgru/GRU/Reshape_output_0 = Reshape[allowzero = 0](%/fgru/GRU/Transpose_1_output_0, %/fgru/GRU/Constant_3_output_0)
+  %/fgru/GRU/Transpose_2_output_0 = Transpose[perm = [1, 0, 2]](%/fgru/GRU/Reshape_output_0)
+  %onnx::Unsqueeze_494 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_3_output_0 = Unsqueeze(%/fgru/Gather_output_0, %onnx::Unsqueeze_494)
+  %onnx::Unsqueeze_496 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_4_output_0 = Unsqueeze(%/fgru/Gather_2_output_0, %onnx::Unsqueeze_496)
+  %onnx::Unsqueeze_498 = Constant[value = <Tensor>]()
+  %/fgru/Unsqueeze_5_output_0 = Unsqueeze(%/fgru/Gather_3_output_0, %onnx::Unsqueeze_498)
+  %/fgru/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %/fgru/Concat_1_output_0 = Concat[axis = 0](%/fgru/Unsqueeze_3_output_0, %/fgru/Unsqueeze_4_output_0, %/fgru/Unsqueeze_5_output_0, %/fgru/Constant_4_output_0)
+  %/fgru/Reshape_1_output_0 = Reshape[allowzero = 0](%/fgru/GRU/Transpose_2_output_0, %/fgru/Concat_1_output_0)
+  %/fgru/Transpose_1_output_0 = Transpose[perm = [0, 3, 1, 2]](%/fgru/Reshape_1_output_0)
+  %/fgru/conv/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/fgru/Transpose_1_output_0, %onnx::Conv_841, %onnx::Conv_842)
+  %/fgru/relu/Relu_output_0 = Relu(%/fgru/conv/Conv_output_0)
+  %/tgru/Shape_output_0 = Shape(%/fgru/relu/Relu_output_0)
+  %/tgru/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/tgru/Gather_output_0 = Gather[axis = 0](%/tgru/Shape_output_0, %/tgru/Constant_output_0)
+  %/tgru/Shape_1_output_0 = Shape(%/fgru/relu/Relu_output_0)
+  %/tgru/Constant_1_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/tgru/Gather_1_output_0 = Gather[axis = 0](%/tgru/Shape_1_output_0, %/tgru/Constant_1_output_0)
+  %/tgru/Shape_2_output_0 = Shape(%/fgru/relu/Relu_output_0)
+  %/tgru/Constant_2_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/tgru/Gather_2_output_0 = Gather[axis = 0](%/tgru/Shape_2_output_0, %/tgru/Constant_2_output_0)
+  %/tgru/Shape_3_output_0 = Shape(%/fgru/relu/Relu_output_0)
+  %/tgru/Constant_3_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/tgru/Gather_3_output_0 = Gather[axis = 0](%/tgru/Shape_3_output_0, %/tgru/Constant_3_output_0)
+  %/tgru/Transpose_output_0 = Transpose[perm = [0, 3, 2, 1]](%/fgru/relu/Relu_output_0)
+  %/tgru/Mul_output_0 = Mul(%/tgru/Gather_output_0, %/tgru/Gather_3_output_0)
+  %onnx::Unsqueeze_522 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_output_0 = Unsqueeze(%/tgru/Mul_output_0, %onnx::Unsqueeze_522)
+  %onnx::Unsqueeze_524 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_1_output_0 = Unsqueeze(%/tgru/Gather_2_output_0, %onnx::Unsqueeze_524)
+  %onnx::Unsqueeze_526 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_2_output_0 = Unsqueeze(%/tgru/Gather_1_output_0, %onnx::Unsqueeze_526)
+  %/tgru/Concat_output_0 = Concat[axis = 0](%/tgru/Unsqueeze_output_0, %/tgru/Unsqueeze_1_output_0, %/tgru/Unsqueeze_2_output_0)
+  %/tgru/Reshape_output_0 = Reshape[allowzero = 0](%/tgru/Transpose_output_0, %/tgru/Concat_output_0)
+  %/tgru/GRU/Transpose_output_0 = Transpose[perm = [1, 0, 2]](%/tgru/Reshape_output_0)
+  %/tgru/GRU/GRU_output_0, %gru_state_out = GRU[hidden_size = 128, linear_before_reset = 1](%/tgru/GRU/Transpose_output_0, %onnx::GRU_937, %onnx::GRU_938, %onnx::GRU_939, %, %gru_state_in)
+  %/tgru/GRU/Constant_output_0 = Constant[value = <Tensor>]()
+  %/tgru/GRU/Squeeze_output_0 = Squeeze(%/tgru/GRU/GRU_output_0, %/tgru/GRU/Constant_output_0)
+  %/tgru/GRU/Transpose_1_output_0 = Transpose[perm = [1, 0, 2]](%/tgru/GRU/Squeeze_output_0)
+  %onnx::Unsqueeze_596 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_3_output_0 = Unsqueeze(%/tgru/Gather_output_0, %onnx::Unsqueeze_596)
+  %onnx::Unsqueeze_598 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_4_output_0 = Unsqueeze(%/tgru/Gather_3_output_0, %onnx::Unsqueeze_598)
+  %onnx::Unsqueeze_600 = Constant[value = <Tensor>]()
+  %/tgru/Unsqueeze_5_output_0 = Unsqueeze(%/tgru/Gather_2_output_0, %onnx::Unsqueeze_600)
+  %/tgru/Constant_4_output_0 = Constant[value = <Tensor>]()
+  %/tgru/Concat_1_output_0 = Concat[axis = 0](%/tgru/Unsqueeze_3_output_0, %/tgru/Unsqueeze_4_output_0, %/tgru/Unsqueeze_5_output_0, %/tgru/Constant_4_output_0)
+  %/tgru/Reshape_1_output_0 = Reshape[allowzero = 0](%/tgru/GRU/Transpose_1_output_0, %/tgru/Concat_1_output_0)
+  %/tgru/Transpose_1_output_0 = Transpose[perm = [0, 3, 2, 1]](%/tgru/Reshape_1_output_0)
+  %/tgru/conv/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/tgru/Transpose_1_output_0, %onnx::Conv_844, %onnx::Conv_845)
+  %/tgru/relu/Relu_output_0 = Relu(%/tgru/conv/Conv_output_0)
+  %/Concat_1_output_0 = Concat[axis = -3](%/tgru/relu/Relu_output_0, %/down6/Relu_1_output_0)
+  %/up6/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_1_output_0, %onnx::Conv_847, %onnx::Conv_848)
+  %/up6/Relu_output_0 = Relu(%/up6/conv_point/Conv_output_0)
+  %/up6/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 2]](%/up6/Relu_output_0, %up6.conv_up.weight, %up6.conv_up.bias)
+  %/up6/bn_up/BatchNormalization_output_0 = BatchNormalization[epsilon = 9.99999974737875e-06, momentum = 0.899999976158142, training_mode = 0](%/up6/conv_up/ConvTranspose_output_0, %up6.bn_up.weight, %up6.bn_up.bias, %up6.bn_up.running_mean, %up6.bn_up.running_var)
+  %/up6/Relu_1_output_0 = Relu(%/up6/bn_up/BatchNormalization_output_0)
+  %/Concat_2_output_0 = Concat[axis = -3](%/up6/Relu_1_output_0, %/down5/Relu_1_output_0)
+  %/up5/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_2_output_0, %onnx::Conv_850, %onnx::Conv_851)
+  %/up5/Relu_output_0 = Relu(%/up5/conv_point/Conv_output_0)
+  %/up5/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/up5/Relu_output_0, %up5.conv_up.weight, %up5.conv_up.bias)
+  %/up5/bn_up/BatchNormalization_output_0 = BatchNormalization[epsilon = 9.99999974737875e-06, momentum = 0.899999976158142, training_mode = 0](%/up5/conv_up/ConvTranspose_output_0, %up5.bn_up.weight, %up5.bn_up.bias, %up5.bn_up.running_mean, %up5.bn_up.running_var)
+  %/up5/Relu_1_output_0 = Relu(%/up5/bn_up/BatchNormalization_output_0)
+  %/Concat_3_output_0 = Concat[axis = -3](%/up5/Relu_1_output_0, %/down4/Relu_1_output_0)
+  %/up4/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_3_output_0, %onnx::Conv_853, %onnx::Conv_854)
+  %/up4/Relu_output_0 = Relu(%/up4/conv_point/Conv_output_0)
+  %/up4/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 1]](%/up4/Relu_output_0, %up4.conv_up.weight, %up4.conv_up.bias)
+  %/up4/bn_up/BatchNormalization_output_0 = BatchNormalization[epsilon = 9.99999974737875e-06, momentum = 0.899999976158142, training_mode = 0](%/up4/conv_up/ConvTranspose_output_0, %up4.bn_up.weight, %up4.bn_up.bias, %up4.bn_up.running_mean, %up4.bn_up.running_var)
+  %/up4/Relu_1_output_0 = Relu(%/up4/bn_up/BatchNormalization_output_0)
+  %/Concat_4_output_0 = Concat[axis = -3](%/up4/Relu_1_output_0, %/down3/Relu_1_output_0)
+  %/up3/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_4_output_0, %onnx::Conv_856, %onnx::Conv_857)
+  %/up3/Relu_output_0 = Relu(%/up3/conv_point/Conv_output_0)
+  %/up3/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/up3/Relu_output_0, %up3.conv_up.weight, %up3.conv_up.bias)
+  %/up3/bn_up/BatchNormalization_output_0 = BatchNormalization[epsilon = 9.99999974737875e-06, momentum = 0.899999976158142, training_mode = 0](%/up3/conv_up/ConvTranspose_output_0, %up3.bn_up.weight, %up3.bn_up.bias, %up3.bn_up.running_mean, %up3.bn_up.running_var)
+  %/up3/Relu_1_output_0 = Relu(%/up3/bn_up/BatchNormalization_output_0)
+  %/Concat_5_output_0 = Concat[axis = -3](%/up3/Relu_1_output_0, %/down2/Relu_1_output_0)
+  %/up2/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_5_output_0, %onnx::Conv_859, %onnx::Conv_860)
+  %/up2/Relu_output_0 = Relu(%/up2/conv_point/Conv_output_0)
+  %/up2/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 3], pads = [0, 1, 0, 1], strides = [1, 1]](%/up2/Relu_output_0, %up2.conv_up.weight, %up2.conv_up.bias)
+  %/up2/bn_up/BatchNormalization_output_0 = BatchNormalization[epsilon = 9.99999974737875e-06, momentum = 0.899999976158142, training_mode = 0](%/up2/conv_up/ConvTranspose_output_0, %up2.bn_up.weight, %up2.bn_up.bias, %up2.bn_up.running_mean, %up2.bn_up.running_var)
+  %/up2/Relu_1_output_0 = Relu(%/up2/bn_up/BatchNormalization_output_0)
+  %/Concat_6_output_0 = Concat[axis = -3](%/up2/Relu_1_output_0, %/down1/Relu_output_0)
+  %/up1/conv_point/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [1, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/Concat_6_output_0, %onnx::Conv_862, %onnx::Conv_863)
+  %/up1/Relu_output_0 = Relu(%/up1/conv_point/Conv_output_0)
+  %/up1/conv_up/ConvTranspose_output_0 = ConvTranspose[dilations = [1, 1], group = 1, kernel_shape = [1, 5], pads = [0, 2, 0, 2], strides = [1, 2]](%/up1/Relu_output_0, %up1.conv_up.weight, %up1.conv_up.bias)
+  %/Transpose_2_output_0 = Transpose[perm = [0, 1, 3, 2]](%/up1/conv_up/ConvTranspose_output_0)
+  %onnx::ReduceSum_651 = Constant[value = <Tensor>]()
+  %/mea/Mul_output_0 = Mul(%inputs, %inputs)
+  %/mea/ReduceSum_output_0 = ReduceSum[keepdims = 0, noop_with_empty_axes = 0](%/mea/Mul_output_0, %onnx::ReduceSum_651)
+  %/mea/Sqrt_output_0 = Sqrt(%/mea/ReduceSum_output_0)
+  %/mea/Gather_output_0 = Gather[axis = 3](%inputs, %/Constant_output_0)
+  %/mea/Gather_1_output_0 = Gather[axis = 3](%inputs, %/Constant_5_output_0)
+  %/mea/Constant_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Add_output_0 = Add(%/mea/Gather_1_output_0, %/mea/Constant_output_0)
+  %/mea/Div_output_0 = Div(%/mea/Gather_output_0, %/mea/Add_output_0)
+  %/mea/Atan_output_0 = Atan(%/mea/Div_output_0)
+  %/mea/Constant_1_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Greater_output_0 = Greater(%/mea/Gather_output_0, %/mea/Constant_1_output_0)
+  %/mea/Constant_2_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Less_output_0 = Less(%/mea/Gather_1_output_0, %/mea/Constant_2_output_0)
+  %/mea/And_output_0 = And(%/mea/Greater_output_0, %/mea/Less_output_0)
+  %/mea/Cast_output_0 = Cast[to = 1](%/mea/And_output_0)
+  %/mea/Constant_3_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_1_output_0 = Mul(%/mea/Cast_output_0, %/mea/Constant_3_output_0)
+  %/mea/Add_1_output_0 = Add(%/mea/Atan_output_0, %/mea/Mul_1_output_0)
+  %/mea/Constant_4_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Less_1_output_0 = Less(%/mea/Gather_output_0, %/mea/Constant_4_output_0)
+  %/mea/And_1_output_0 = And(%/mea/Less_1_output_0, %/mea/Less_output_0)
+  %/mea/Cast_1_output_0 = Cast[to = 1](%/mea/And_1_output_0)
+  %/mea/Constant_5_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_2_output_0 = Mul(%/mea/Cast_1_output_0, %/mea/Constant_5_output_0)
+  %/mea/Sub_output_0 = Sub(%/mea/Add_1_output_0, %/mea/Mul_2_output_0)
+  %/mea/Constant_6_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Equal_output_0 = Equal(%/mea/Gather_1_output_0, %/mea/Constant_6_output_0)
+  %/mea/And_2_output_0 = And(%/mea/Greater_output_0, %/mea/Equal_output_0)
+  %/mea/Cast_2_output_0 = Cast[to = 1](%/mea/And_2_output_0)
+  %/mea/Constant_7_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Mul_3_output_0 = Mul(%/mea/Cast_2_output_0, %/mea/Constant_7_output_0)
+  %/mea/Constant_8_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Sub_1_output_0 = Sub(%/mea/Constant_8_output_0, %/mea/Mul_3_output_0)
+  %/mea/Mul_4_output_0 = Mul(%/mea/Sub_output_0, %/mea/Sub_1_output_0)
+  %/mea/Cast_3_output_0 = Cast[to = 1](%/mea/And_2_output_0)
+  %/mea/Constant_9_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_5_output_0 = Mul(%/mea/Cast_3_output_0, %/mea/Constant_9_output_0)
+  %/mea/Add_2_output_0 = Add(%/mea/Mul_4_output_0, %/mea/Mul_5_output_0)
+  %/mea/And_3_output_0 = And(%/mea/Less_1_output_0, %/mea/Equal_output_0)
+  %/mea/Cast_4_output_0 = Cast[to = 1](%/mea/And_3_output_0)
+  %/mea/Constant_10_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Mul_6_output_0 = Mul(%/mea/Cast_4_output_0, %/mea/Constant_10_output_0)
+  %/mea/Constant_11_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Sub_2_output_0 = Sub(%/mea/Constant_11_output_0, %/mea/Mul_6_output_0)
+  %/mea/Mul_7_output_0 = Mul(%/mea/Add_2_output_0, %/mea/Sub_2_output_0)
+  %/mea/Cast_5_output_0 = Cast[to = 1](%/mea/And_3_output_0)
+  %/mea/Constant_12_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_8_output_0 = Mul(%/mea/Cast_5_output_0, %/mea/Constant_12_output_0)
+  %/mea/Add_3_output_0 = Add(%/mea/Mul_7_output_0, %/mea/Mul_8_output_0)
+  %/mea/mag_mask/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [3, 1], pads = [1, 0, 1, 0], strides = [1, 1]](%/Transpose_2_output_0, %mea.mag_mask.weight, %mea.mag_mask.bias)
+  %/mea/Constant_13_output_0 = Constant[value = <Tensor>]()
+  %/mea/Unsqueeze_output_0 = Unsqueeze(%/mea/Sqrt_output_0, %/mea/Constant_13_output_0)
+  %/mea/Constant_14_output_0 = Constant[value = <Tensor>]()
+  %/mea/Constant_15_output_0 = Constant[value = <Tensor>]()
+  %/mea/ConstantOfShape_output_0 = ConstantOfShape[value = <Tensor>](%/mea/Constant_14_output_0)
+  %/mea/Concat_output_0 = Concat[axis = 0](%/mea/Constant_15_output_0, %/mea/ConstantOfShape_output_0)
+  %/mea/Constant_16_output_0 = Constant[value = <Tensor>]()
+  %/mea/Reshape_output_0 = Reshape[allowzero = 0](%/mea/Concat_output_0, %/mea/Constant_16_output_0)
+  %/mea/Constant_17_output_0 = Constant[value = <Tensor>]()
+  %/mea/Constant_18_output_0 = Constant[value = <Tensor>]()
+  %/mea/Constant_19_output_0 = Constant[value = <Tensor>]()
+  %/mea/Constant_20_output_0 = Constant[value = <Tensor>]()
+  %/mea/Slice_output_0 = Slice(%/mea/Reshape_output_0, %/mea/Constant_18_output_0, %/mea/Constant_19_output_0, %/mea/Constant_17_output_0, %/mea/Constant_20_output_0)
+  %/mea/Transpose_output_0 = Transpose[perm = [1, 0]](%/mea/Slice_output_0)
+  %/mea/Constant_21_output_0 = Constant[value = <Tensor>]()
+  %/mea/Reshape_1_output_0 = Reshape[allowzero = 0](%/mea/Transpose_output_0, %/mea/Constant_21_output_0)
+  %/mea/Cast_6_output_0 = Cast[to = 7](%/mea/Reshape_1_output_0)
+  %/mea/Pad_output_0 = Pad[mode = 'constant'](%/mea/Unsqueeze_output_0, %/mea/Cast_6_output_0, %)
+  %/mea/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [3, 1], pads = [0, 0, 0, 0], strides = [1, 1]](%/mea/Pad_output_0, %mea.kernel)
+  %/mea/Relu_output_0 = Relu(%/mea/mag_mask/Conv_output_0)
+  %/mea/Mul_9_output_0 = Mul(%/mea/Conv_output_0, %/mea/Relu_output_0)
+  %onnx::ReduceSum_730 = Constant[value = <Tensor>]()
+  %/mea/ReduceSum_1_output_0 = ReduceSum[keepdims = 0](%/mea/Mul_9_output_0, %onnx::ReduceSum_730)
+  %/mea/real_mask/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [3, 1], pads = [1, 0, 1, 0], strides = [1, 1]](%/Transpose_2_output_0, %mea.real_mask.weight, %mea.real_mask.bias)
+  %/mea/Constant_22_output_0 = Constant[value = <Tensor>]()
+  %/mea/Squeeze_output_0 = Squeeze(%/mea/real_mask/Conv_output_0, %/mea/Constant_22_output_0)
+  %/mea/imag_mask/Conv_output_0 = Conv[dilations = [1, 1], group = 1, kernel_shape = [3, 1], pads = [1, 0, 1, 0], strides = [1, 1]](%/Transpose_2_output_0, %mea.imag_mask.weight, %mea.imag_mask.bias)
+  %/mea/Constant_23_output_0 = Constant[value = <Tensor>]()
+  %/mea/Squeeze_1_output_0 = Squeeze(%/mea/imag_mask/Conv_output_0, %/mea/Constant_23_output_0)
+  %/mea/Constant_24_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Pow_output_0 = Pow(%/mea/Squeeze_output_0, %/mea/Constant_24_output_0)
+  %/mea/Constant_25_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Pow_1_output_0 = Pow(%/mea/Squeeze_1_output_0, %/mea/Constant_25_output_0)
+  %/mea/Add_4_output_0 = Add(%/mea/Pow_output_0, %/mea/Pow_1_output_0)
+  %/mea/Constant_26_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Clip_output_0 = Clip(%/mea/Add_4_output_0, %/mea/Constant_26_output_0, %)
+  %/mea/Sqrt_1_output_0 = Sqrt(%/mea/Clip_output_0)
+  %/mea/Constant_27_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Add_5_output_0 = Add(%/mea/Squeeze_1_output_0, %/mea/Constant_27_output_0)
+  %/mea/Constant_28_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Add_6_output_0 = Add(%/mea/Squeeze_output_0, %/mea/Constant_28_output_0)
+  %/mea/Constant_29_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Add_7_output_0 = Add(%/mea/Add_6_output_0, %/mea/Constant_29_output_0)
+  %/mea/Div_1_output_0 = Div(%/mea/Add_5_output_0, %/mea/Add_7_output_0)
+  %/mea/Atan_1_output_0 = Atan(%/mea/Div_1_output_0)
+  %/mea/Constant_30_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Greater_1_output_0 = Greater(%/mea/Add_5_output_0, %/mea/Constant_30_output_0)
+  %/mea/Constant_31_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Less_2_output_0 = Less(%/mea/Add_6_output_0, %/mea/Constant_31_output_0)
+  %/mea/And_4_output_0 = And(%/mea/Greater_1_output_0, %/mea/Less_2_output_0)
+  %/mea/Cast_7_output_0 = Cast[to = 1](%/mea/And_4_output_0)
+  %/mea/Constant_32_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_10_output_0 = Mul(%/mea/Cast_7_output_0, %/mea/Constant_32_output_0)
+  %/mea/Add_8_output_0 = Add(%/mea/Atan_1_output_0, %/mea/Mul_10_output_0)
+  %/mea/Constant_33_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Less_3_output_0 = Less(%/mea/Add_5_output_0, %/mea/Constant_33_output_0)
+  %/mea/And_5_output_0 = And(%/mea/Less_3_output_0, %/mea/Less_2_output_0)
+  %/mea/Cast_8_output_0 = Cast[to = 1](%/mea/And_5_output_0)
+  %/mea/Constant_34_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_11_output_0 = Mul(%/mea/Cast_8_output_0, %/mea/Constant_34_output_0)
+  %/mea/Sub_3_output_0 = Sub(%/mea/Add_8_output_0, %/mea/Mul_11_output_0)
+  %/mea/Constant_35_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Equal_1_output_0 = Equal(%/mea/Add_6_output_0, %/mea/Constant_35_output_0)
+  %/mea/And_6_output_0 = And(%/mea/Greater_1_output_0, %/mea/Equal_1_output_0)
+  %/mea/Cast_9_output_0 = Cast[to = 1](%/mea/And_6_output_0)
+  %/mea/Constant_36_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Mul_12_output_0 = Mul(%/mea/Cast_9_output_0, %/mea/Constant_36_output_0)
+  %/mea/Constant_37_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Sub_4_output_0 = Sub(%/mea/Constant_37_output_0, %/mea/Mul_12_output_0)
+  %/mea/Mul_13_output_0 = Mul(%/mea/Sub_3_output_0, %/mea/Sub_4_output_0)
+  %/mea/Cast_10_output_0 = Cast[to = 1](%/mea/And_6_output_0)
+  %/mea/Constant_38_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_14_output_0 = Mul(%/mea/Cast_10_output_0, %/mea/Constant_38_output_0)
+  %/mea/Add_9_output_0 = Add(%/mea/Mul_13_output_0, %/mea/Mul_14_output_0)
+  %/mea/And_7_output_0 = And(%/mea/Less_3_output_0, %/mea/Equal_1_output_0)
+  %/mea/Cast_11_output_0 = Cast[to = 1](%/mea/And_7_output_0)
+  %/mea/Constant_39_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Mul_15_output_0 = Mul(%/mea/Cast_11_output_0, %/mea/Constant_39_output_0)
+  %/mea/Constant_40_output_0 = Constant[value = <Scalar Tensor []>]()
+  %/mea/Sub_5_output_0 = Sub(%/mea/Constant_40_output_0, %/mea/Mul_15_output_0)
+  %/mea/Mul_16_output_0 = Mul(%/mea/Add_9_output_0, %/mea/Sub_5_output_0)
+  %/mea/Cast_12_output_0 = Cast[to = 1](%/mea/And_7_output_0)
+  %/mea/Constant_41_output_0 = Constant[value = <Tensor>]()
+  %/mea/Mul_17_output_0 = Mul(%/mea/Cast_12_output_0, %/mea/Constant_41_output_0)
+  %/mea/Add_10_output_0 = Add(%/mea/Mul_16_output_0, %/mea/Mul_17_output_0)
+  %/mea/Relu_1_output_0 = Relu(%/mea/Sqrt_1_output_0)
+  %/mea/Mul_18_output_0 = Mul(%/mea/ReduceSum_1_output_0, %/mea/Relu_1_output_0)
+  %/mea/Add_11_output_0 = Add(%/mea/Add_3_output_0, %/mea/Add_10_output_0)
+  %/mea/Cos_output_0 = Cos(%/mea/Add_11_output_0)
+  %/mea/Mul_19_output_0 = Mul(%/mea/Mul_18_output_0, %/mea/Cos_output_0)
+  %/mea/Add_12_output_0 = Add(%/mea/Add_3_output_0, %/mea/Add_10_output_0)
+  %/mea/Sin_output_0 = Sin(%/mea/Add_12_output_0)
+  %/mea/Mul_20_output_0 = Mul(%/mea/Mul_18_output_0, %/mea/Sin_output_0)
+  %/mea/Constant_42_output_0 = Constant[value = <Tensor>]()
+  %/mea/Unsqueeze_1_output_0 = Unsqueeze(%/mea/Mul_19_output_0, %/mea/Constant_42_output_0)
+  %/mea/Constant_43_output_0 = Constant[value = <Tensor>]()
+  %/mea/Unsqueeze_2_output_0 = Unsqueeze(%/mea/Mul_20_output_0, %/mea/Constant_43_output_0)
+  %outputs = Concat[axis = -1](%/mea/Unsqueeze_1_output_0, %/mea/Unsqueeze_2_output_0)
+  return %outputs, %gru_state_out, %pe_state_out
+}
+Unsupported op: Concat
+Unsupported op: ConstantOfShape
+Unsupported op: Pad
+Unsupported op: Div
+Unsupported op: Mul
+Unsupported op: Sub
+Unsupported op: Pow
+Unsupported op: Sqrt
+Unsupported op: GRU
+Unsupported op: ReduceSum
+Unsupported op: Atan
+Unsupported op: Greater
+Unsupported op: Less
+Unsupported op: And
+Unsupported op: Equal
+Unsupported op: Clip
+Unsupported op: Cos
+Unsupported op: Sin
+MACS: 1196500.0

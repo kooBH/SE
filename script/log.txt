@@ -1,0 +1,43 @@
+metric.py::DNSMOS initialized
+Directory : german_speech
+Total files :  288752
+Average DNSMOS :  3.158101096062601
+Number of files with DNSMOS lower than 3.0 :  58011
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/female/hajdurova/chetvero_nischih/wavs/chetvero_nischih_s000203.wav
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/female/hajdurova/chetvero_nischih/wavs/chetvero_nischih_s000550.wav
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/female/hajdurova/chetvero_nischih/wavs/chetvero_nischih_s000392.wav
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/female/hajdurova/chetvero_nischih/wavs/chetvero_nischih_s000630.wav
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/male/minaev/oblomov/wavs/oblomov_s002765.wav
+Error for file :  /home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/russian_speech/M-AILABS_Speech_Dataset/ru_RU_47hrs_48k/male/minaev/oblomov/wavs/oblomov_s003811.wav
+Directory : russian_speech
+Total files :  21241
+Average DNSMOS :  3.3407944617135508
+Number of files with DNSMOS lower than 3.0 :  847
+Directory : vctk_wav48_silence_trimmed
+Total files :  88328
+Average DNSMOS :  3.1898088178146815
+Number of files with DNSMOS lower than 3.0 :  12766
+Directory : spanish_speech
+Total files :  104929
+Average DNSMOS :  3.1550037958755834
+Number of files with DNSMOS lower than 3.0 :  26678
+Directory : read_speech
+Total files :  316759
+Average DNSMOS :  3.3862902615946426
+Number of files with DNSMOS lower than 3.0 :  4596
+Directory : emotional_speech
+Total files :  10120
+Average DNSMOS :  1.936063203746895
+Number of files with DNSMOS lower than 3.0 :  10120
+Directory : french_data
+Total files :  7010
+Average DNSMOS :  3.361848193216006
+Number of files with DNSMOS lower than 3.0 :  101
+Directory : VocalSet_48kHz_mono
+Total files :  3613
+Average DNSMOS :  1.4422414769099492
+Number of files with DNSMOS lower than 3.0 :  3613
+Directory : french_speech
+Total files :  81453
+Average DNSMOS :  3.2904986496764894
+Number of files with DNSMOS lower than 3.0 :  5416

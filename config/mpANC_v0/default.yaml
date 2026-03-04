@@ -4,6 +4,7 @@ model:
   type : mpANC_v0
 ---
 train:
+  seed : -1
   epoch: 20
   batch_size: 32
   num_workers: 16
@@ -14,9 +15,10 @@ train:
     final: 0.05
   AdamW:
     lr: 0.001
-  summary_interval: 500
+  summary_interval: 3200
   validation_interval: 100
   checkpoint_interval: 1000
+  eval_interval : 5
 ---
 loss:
   type: 'TRUNetLoss'
@@ -28,13 +30,32 @@ loss:
     alpha : 0.99
   HybridLoss :
     alpha : 0.9
+  ListLoss : 
+    list : ["MultiscaleCosSDRLoss","MultiscaleSpectrogramLoss"]
+    weight : [1.0, 0.0]
   TRUNetLoss :
     frame_size_sdr : [4096, 2048, 1024, 512]
     frame_size_spec : [1024, 512, 256]
+    overlap : 0.25
   MultiLoss1 : 
     frame_size_sdr : [4096, 2048, 1024, 512]
     frame_size_spec : [1024, 512, 256]
     frame_size_aw : [1024,512,256]
+  MultiLoss2 : 
+    frame_size_sdr : [4096, 2048, 1024, 512]
+    frame_size_spec : [1024, 512, 256]
+    weight_spec : 15
+    weight_sdr : 1
+    overlap : 0.25
+  MultiscaleCosSDRLoss : 
+    chunk_sizes : [4096, 2048, 1024, 512]
+  MultiscaleSpectrogramLoss : 
+    chunk_sizes : [1024, 512, 256]
+    overlap : 0.25
+    norm_window : True
+    type_weight: 0
+    weight_mag : 1.0
+    weight_cplx : 0.0
 
 
 ---
@@ -56,38 +77,63 @@ scheduler: # Plateau, oneCycle, CosineAnnealingLR, LinearPerEpoch, StepLR
     gamma : 0.1
 ---
 audio :
-  n_fft : 256
-  n_hop : 64
+  n_fft : 512
+  n_hop : 128
+  sr : 16000
 ---
 data:
-  RIR : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
-  clean : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/"
-  noise : "/home/data/kbh/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
+  RIR : "/home/data/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
+  clean : "/home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/"
+  noise : "/home/data/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
   dev : 
-    root : "/home/data/kbh/training_set_sept12_16k/"
+    root : "/home/data/training_set_sept12_16k/"
   eval :
-    clean : "/home/data/kbh/Voicebank+Demand/clean_testset_wav"
-    noisy : "/home/data/kbh/Voicebank+Demand/noisy_testset_wav"
-    DNS : "/home/data/kbh/DNS2020/test_set/synthetic/no_reverb"
+    clean : "/home/data/Voicebank+Demand/clean_testset_wav"
+    noisy : "/home/data/Voicebank+Demand/noisy_testset_wav"
+    DNS : "/home/data/DNS2020/test_set/synthetic/no_reverb"
+    white : "/home/data/20250609_eval_simu_1ch"
   len_data : 49152 # 4096 * 12
   n_item : 65365
   use_RIR : True
   deverb_clean : False
+  clean_rir_len : 0
   RIR_prob : 0.5
   sr : 16000
   SNR : [-5,30]
   target_dB_FS : -25
   target_dB_FS_floating_value :  10
-  prob_spk : [1.0]
+  prob_spk : [0.0, 1.0]
   range_multitalk : [0.2, 0.8]
   residual_clean :
     use : False
     SNR : [20,30]
+  spec_augmentation :
+    use : False
+    time_width : 10
+    freq_width : 5
+  RandomNoise : 
+    use : False
+    prob : 0.05
+    f_decay : 0.0
+  biquad_filter :
+    use : False
+    prob : 0.1
+  remove_dc :
+    use : False
+    prob : 0.25
+  rand_resample : 
+    use : False
+    prob : 0.1
+    r_low : 0.9
+    r_high : 1.1
+  reverbed_speech_noise :
+    use : False
+    prob : 0.1
 ---
 log:
   root: '/home/data/kbh/logs/mpANC_v0'
   plot_wav : True
   plot_spec : True
-  dev : ["PESQ","SNR"]
-  eval : ["PESQ_WB","SNR"]
+  dev : ["PESQ","SNR","SISDR"]
+  eval : ["PESQ_WB","SNR","SISDR"]
   n_dev : 361

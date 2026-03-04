@@ -24,7 +24,6 @@ from libdf import DF, erb, erb_norm, unit_norm
 PRETRAINED_MODELS = ("DeepFilterNet", "DeepFilterNet2", "DeepFilterNet3")
 DEFAULT_MODEL = "DeepFilterNet3"
 
-
 class AudioDataset(Dataset):
     def __init__(self, files: List[str], sr: int) -> None:
         super().__init__()
@@ -42,7 +41,6 @@ class AudioDataset(Dataset):
 
     def __len__(self):
         return len(self.files)
-
 
 def main(args):
     model, df_state, suffix = init_df(
@@ -88,7 +86,6 @@ def main(args):
         audio = resample(audio.to("cpu"), df_sr, audio_sr)
         save_audio(file, audio, sr=audio_sr, output_dir=args.output_dir, suffix=suffix, log=False)
 
-
 def get_model_basedir(m: Optional[str]) -> str:
     if m is None:
         m = DEFAULT_MODEL
@@ -96,7 +93,6 @@ def get_model_basedir(m: Optional[str]) -> str:
     if is_default_model:
         return maybe_download_model(m)
     return m
-
 
 def init_df(
     model_base_dir: Optional[str] = None,
@@ -128,7 +124,6 @@ def init_df(
     """
     try:
         from icecream import ic, install
-
         ic.configureOutput(includeContext=True)
         install()
     except ImportError:
@@ -185,7 +180,6 @@ def init_df(
     logger.info("Model loaded")
     return model, df_state, suffix
 
-
 def df_features(audio: Tensor, df: DF, nb_df: int, device=None) -> Tuple[Tensor, Tensor, Tensor]:
     spec = df.analysis(audio.numpy())  # [C, Tf] -> [C, Tf, F]
     a = get_norm_alpha(False)
@@ -200,7 +194,6 @@ def df_features(audio: Tensor, df: DF, nb_df: int, device=None) -> Tuple[Tensor,
         erb_feat = erb_feat.to(device)
         spec_feat = spec_feat.to(device)
     return spec, erb_feat, spec_feat
-
 
 @torch.no_grad()
 def enhance(
@@ -248,7 +241,6 @@ def enhance(
         audio = audio[:, d : orig_len + d]
     return audio
 
-
 def maybe_download_model(name: str = DEFAULT_MODEL) -> str:
     """Download a DeepFilterNet model.
 
@@ -271,14 +263,12 @@ def maybe_download_model(name: str = DEFAULT_MODEL) -> str:
     download_file(url + ".zip", cache_dir, extract=True)
     return model_dir
 
-
 def parse_epoch_type(value: str) -> Union[int, str]:
     try:
         return int(value)
     except ValueError:
         assert value in ("best", "latest")
         return value
-
 
 class PrintVersion(argparse.Action):
     def __init__(self, option_strings, dest):
@@ -293,7 +283,6 @@ class PrintVersion(argparse.Action):
     def __call__(self, *args):
         print("DeepFilterNet", version)
         exit(0)
-
 
 def setup_df_argument_parser(
     default_log_level: str = "INFO", parser=None
@@ -337,7 +326,6 @@ def setup_df_argument_parser(
     )
     parser.add_argument("-v", "--version", action=PrintVersion)
     return parser
-
 
 def run():
     parser = setup_df_argument_parser()

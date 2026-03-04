@@ -22,7 +22,6 @@ from df.modules import (
 )
 from libdf import DF
 
-
 class ModelParams(DfParams):
     section = "deepfilternet"
 
@@ -295,7 +294,6 @@ class DfOutputReshapeMF(nn.Module):
         # coefs = coefs.permute(0, 3, 1, 2, 4)
         return coefs
 
-
 class DfDecoder(nn.Module):
     def __init__(self):
         super().__init__()
@@ -370,7 +368,6 @@ class DfDecoder(nn.Module):
         c = c.view(b, t, self.df_bins, self.df_out_ch) + c0  # [B, T, F, O*2]
         return c, alpha
 
-
 class DfDecoderLinear(nn.Module):
     # For compat
     def __init__(self):
@@ -414,7 +411,6 @@ class DfDecoderLinear(nn.Module):
         c = c.view(b, t, self.df_order * 2, self.df_bins)  # [B, T, O*2, F]
         c = c.add(c0).view(b, t, self.df_order, 2, self.df_bins).transpose(3, 4)  # [B, T, O, F, 2]
         return c, alpha
-
 
 class DfNet(nn.Module):
     run_df: Final[bool]

@@ -20,7 +20,6 @@ from df.modules import (
     get_device,
 )
 
-
 class ModelParams(DfParams):
     section = "deepfilternet"
 
@@ -72,16 +71,13 @@ class ModelParams(DfParams):
         )
         self.mask_pf: bool = config("MASK_PF", cast=bool, default=False, section=self.section)
 
-
 class Add(nn.Module):
     def forward(self, a, b):
         return a + b
 
-
 class Concat(nn.Module):
     def forward(self, a, b):
         return torch.cat((a, b), dim=-1)
-
 
 class Encoder(nn.Module):
     def __init__(self):
@@ -164,7 +160,7 @@ class Encoder(nn.Module):
         c0 = self.df_conv0(feat_spec)  # [B, C, T, Fc]
         c1 = self.df_conv1(c0)  # [B, C*2, T, Fc]
         cemb = c1.permute(0, 2, 3, 1).flatten(2)  # [B, T, -1]
-        cemb = self.df_fc_emb(cemb)  # [T, B, C * F/4]
+        cemb = self.df_fc_emb(cemb)  # [B, T, C * F/4]
         emb = e3.permute(0, 2, 3, 1).flatten(2)  # [B, T, C * F/4]
         emb = self.combine(emb, cemb)
         emb, _ = self.emb_gru(emb)  # [B, T, -1]
@@ -358,7 +354,6 @@ class DfDecoder(nn.Module):
         c = c.view(b, t, self.df_bins, self.df_out_ch) + c0  # [B, T, F, O*2]
         return c, alpha
 
-
 class DfDecoderLinear(nn.Module):
     # For compat
     def __init__(self):
@@ -404,7 +399,7 @@ class DfDecoderLinear(nn.Module):
         return c, alpha
 
 
-class DF(nn.Module):
+class DfNet(nn.Module):
     run_df: Final[bool]
     use_alpha: Final[bool]
 
@@ -487,27 +482,59 @@ class DF(nn.Module):
             for _ in range(self.df_iter):
                 if self.use_alpha:
                     spec = self.df_op(spec, df_coefs, df_alpha)
-                else:
+                else :
                     spec = self.df_op(spec, df_coefs)
 
         return spec, m, lsnr, df_alpha
 
+import os
+from libdf import DF, erb, erb_norm, unit_norm
+from df.utils import as_complex, as_real, download_file, get_cache_dir, get_norm_alpha
+import warnings
 
-class DF_heler(nn.Module):
+
+class DF_helper(nn.Module):
     def __init__(self) :
+        super().__init__()
+        self.model = self.init_model()
 
+    def init_model(self):
+        # default
+        run_df = True
+        train_mask = True
 
+        # config
+        config.load(os.path.join(os.path.dirname(os.path.abspath(__file__)),"config.ini"),
+                config_must_exist=True,
+                allow_defaults=False,
+                allow_reload=True,
+            )
+        self.p = ModelParams()
+        self.df_state = DF(sr=self.p.sr, fft_size=self.p.fft_size, hop_size=self.p.hop_size, nb_bands=self.p.nb_erb)
+        erb = erb_fb(self.df_state.erb_widths(), self.p.sr, inverse=False)
+        erb_inverse = erb_fb(self.df_state.erb_widths(), self.p.sr, inverse=True)
+        model = DfNet(erb, erb_inverse, run_df, train_mask)
 
-        erb = erb_fb(df_state.erb_widths(), p.sr, inverse=False)
-        erb_inverse = erb_fb(df_state.erb_widths(), p.sr, inverse=True)
-
-
-        self.model = DF(erb_fb,erb_inv_fb)
-
-
-
+        self.nb_df = getattr(model, "nb_df", getattr(model, "df_bins", ModelParams().nb_df))
+        return model
 
     def forward(self,x) :
 
-        spec,m,lsnr,df_alpha = self.model(spec,feat_erb,feat_spec)
-        return 
+        device = x.device
+        # def df_features(audio: Tensor, df: DF, nb_df: int, device=None) -> Tuple[Tensor, Tensor, Tensor]:
+        spec = self.df_state.analysis(x.numpy())  # [C, Tf] -> [C, Tf, F]
+        print(f"DF_helper {x.shape} -> {spec.shape}")
+        a = get_norm_alpha(False)
+        erb_fb = self.df_state.erb_widths()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore", UserWarning)
+            erb_feat = torch.as_tensor(erb_norm(erb(spec, erb_fb), a)).unsqueeze(1)
+        spec_feat = as_real(torch.as_tensor(unit_norm(spec[..., :self.nb_df], a)).unsqueeze(1))
+        spec = as_real(torch.as_tensor(spec).unsqueeze(1))
+
+        spec = spec.to(device)
+        erb_feat = erb_feat.to(device)
+        spec_feat = spec_feat.to(device)
+
+        spec,m,lsnr,df_alpha = self.model(spec,erb_feat,spec_feat)
+        return spec

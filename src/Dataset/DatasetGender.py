@@ -36,7 +36,6 @@ def sync(x,ref):
         
     # match length
 
-
     return y
 
 class DatasetGender(torch.utils.data.Dataset):
