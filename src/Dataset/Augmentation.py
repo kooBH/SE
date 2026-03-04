@@ -217,7 +217,6 @@ def rand_resample(x, sr=16000, r_low=0.9, r_high = 1.1) :
 
     return x_hat
 
-
 def rand_clipping(x, c_min = 0.01, c_max = 0.25):
     max_val = np.max(np.abs(x))
     if max_val == 0:
@@ -226,3 +225,22 @@ def rand_clipping(x, c_min = 0.01, c_max = 0.25):
     c = np.random.uniform(c_min * max_val, c_max * max_val)
 
     return np.clip(x, -c, c)
+
+def spec_augment(x, t_width, f_width, n_fft=1024, hop_length=256):
+    X = rs.stft(x, n_fft=n_fft, hop_length=hop_length)
+
+    if isinstance(t_width, list):
+        t_width = np.random.randint(t_width[0], t_width[1])
+    if isinstance(f_width, list):
+        f_width = np.random.randint(f_width[0], f_width[1])
+
+    f_bins, t_frames = X.shape
+    
+    f_beg = np.random.randint(0, max(1, f_bins - f_width))
+    t_beg = np.random.randint(0, max(1, t_frames - t_width))
+
+    X[f_beg:f_beg + f_width, t_beg:t_beg + t_width] = 0
+
+    y = rs.istft(X, n_fft=n_fft, hop_length=hop_length, length=len(x))
+
+    return y

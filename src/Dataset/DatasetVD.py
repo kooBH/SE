@@ -43,9 +43,9 @@ class DatasetVD(torch.utils.data.Dataset):
         self.window = torch.hann_window(hp.audio.n_fft) 
 
         if is_train : 
-            print("DatasetVD[train:{}] | len : {}".format(is_train,self.n_item,len(self.list_clean),len(self.list_noise)))
+            print("DatasetVD[train:{}] : {}".format(is_train,len(self.list_noisy)))
         else :
-            print("DatasetVD[train:{}] | len : {}".format(is_train,self.n_item,len(self.list_noisy)))
+            print("DatasetVD[train:{}] : {}".format(is_train,len(self.list_noisy)))
 
     def match_length(self,wav,idx_start=None) : 
         if len(wav) > self.len_data : 
@@ -62,8 +62,7 @@ class DatasetVD(torch.utils.data.Dataset):
 
         if self.is_train : 
             base_name = os.path.basename(path_noisy)
-            path_clean = os.path.join(self.hp.data.clean)
-            
+            path_clean = os.path.join(self.hp.data.clean,base_name)
         else : 
             path_after_root = path_noisy.split(self.hp.data.dev.root)[-1]
             dev_type = path_after_root.split("/")[0]
@@ -76,20 +75,14 @@ class DatasetVD(torch.utils.data.Dataset):
         return path_clean
 
     def __getitem__(self, idx):
-
-        if self.is_train : 
-            path_noisy = self.list_noisy[idx]
-
+        path_noisy = self.list_noisy[idx]
+        path_clean = self.get_clean_path(path_noisy)
             
-        else :
-            path_noisy = self.list_noisy[idx]
-            path_clean = self.get_clean_dev(path_noisy)
-            
-            clean = rs.load(path_clean,sr=self.sr)[0]
-            noisy = rs.load(path_noisy,sr=self.sr)[0]
+        clean = rs.load(path_clean,sr=self.sr)[0]
+        noisy = rs.load(path_noisy,sr=self.sr)[0]
 
-            clean,idx_start = self.match_length(clean)
-            noisy,_ = self.match_length(noisy,idx_start)
+        clean, idx_start = self.match_length(clean)
+        noisy,_ = self.match_length(noisy,idx_start)
 
         noisy = torch.FloatTensor(noisy)
         clean = torch.FloatTensor(clean)
@@ -98,20 +91,7 @@ class DatasetVD(torch.utils.data.Dataset):
         return  data
 
     def __len__(self):
-        if self.is_train : 
-            return self.n_item
-        else :
-            return len(self.list_noisy)
-        
-    def get_eval(self,idx) : 
-
-        path_reverb = self.eval["with_reverb"][idx]
-        path_no_reverb = self.eval["no_reverb"][idx]
-
-        path_clean_reverb = self.get_clean_dev(path_reverb)
-        path_clean_no_reverb = self.get_clean_dev(path_no_reverb)
-
-        return [path_reverb,path_clean_reverb],[path_no_reverb,path_clean_no_reverb]
+        return len(self.list_noisy)
 
     def spec_augment(self, x):
 
@@ -128,7 +108,6 @@ class DatasetVD(torch.utils.data.Dataset):
         if type(f_width) is list : 
             f_width = np.random.randint(f_width[0],f_width[1])
 
-
         t_beg= np.random.randint( X.shape[0] - t_width)
         f_beg= np.random.randint( X.shape[1] - f_width)
 
@@ -137,23 +116,6 @@ class DatasetVD(torch.utils.data.Dataset):
         y = torch.istft(X,n_fft=n_fft,hop_length=hop_length,window=self.window,length=len(x))
 
         return y.numpy()
-    
-    def gen_reverbed_speech(self):
-        path_speech = random.choice(self.list_clean)
-        speech = rs.load(path_speech,sr=self.sr)[0]
-
-        path_RIR = random.choice(self.list_RIR)
-        RIR = rs.load(path_RIR,sr=self.sr)[0]
-
-        if RIR.ndim > 1:
-            rir_idx = np.random.randint(0, RIR.shape[0])
-            RIR = RIR[rir_idx, :]
-
-        speech = signal.fftconvolve(speech,RIR)[:len(speech)]
-
-        speech, _ = self.match_length(speech)
-
-        return speech
 
 
 ## DEV

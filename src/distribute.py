@@ -230,13 +230,11 @@ if __name__ == "__main__" :
                 f.write(f"{n_parameters}\t{macs_ptflos}\t")
                 f.write("\n")
 
-
     else : 
         with open("./log/"+name+".txt","w") as f :
             f.write("N_PARAM : {}\n".format(n_parameters))
             f.write("MACS : {}\n".format(macs_ptflos))
             f.write("PARAM_ptflops : {}\n".format(params_ptflops))
-
 
     print("ONXX Export")
     model.to_onnx("./chkpt/"+name+".onnx")

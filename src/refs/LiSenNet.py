@@ -478,6 +478,7 @@ class LiSenNet(nn.Module):
         est_spec = torch.complex(est_mag * est_pha.cos(), est_mag * est_pha.sin())
         est = self.apply_istft(self.power_uncompress(est_spec), length=tgt.size(-1))
 
+        """
         results = {
             'tgt': tgt,
             'tgt_spec': tgt_spec,
@@ -488,3 +489,5 @@ class LiSenNet(nn.Module):
         }
 
         return results
+        """
+        return est

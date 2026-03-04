@@ -45,8 +45,8 @@ class DatasetDNS(torch.utils.data.Dataset):
             self.eval["no_reverb"] = glob(join(hp.data.dev.root,"no_reverb","noisy","*.wav"),recursive=True)
 
         self.range_SNR = hp.data.SNR
-        self.target_dB_FS = hp.data.target_dB_FS
-        self.target_dB_FS_floating_value = hp.data.target_dB_FS_floating_value
+        self.target_dB_FS = hp.data.Scale.target_dB_FS
+        self.target_dB_FS_floating_value = hp.data.Scale.target_dB_FS_floating_value
 
         self.len_data = hp.data.len_data
         self.n_item = hp.data.n_item
@@ -143,8 +143,16 @@ class DatasetDNS(torch.utils.data.Dataset):
 
     
         ## Scaling
-        noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)
-        clean *= noisy_scalar
+        if self.hp.data.Scale.method == "dB" :
+            noisy, _, noisy_scalar = self.tailor_dB_FS(noisy, noisy_target_dB_FS)
+            clean *= noisy_scalar
+        else : 
+            scale = np.random.uniform(self.hp.data.Scale.range[0],self.hp.data.Scale.range[1])
+            noisy,scalar = self.norm_amplitude(noisy)
+            noisy = noisy * scale
+            clean/= scalar
+            clean = clean * scale
+
 
         M = max(np.max(np.abs(noisy)),np.max(np.abs(noise)),np.max(np.abs(clean))) + eps
         if M > 1.0 : 
@@ -310,6 +318,11 @@ class DatasetDNS(torch.utils.data.Dataset):
 
             # mix 
             noisy,clean,noise = self.mix(clean,noise,RIR)
+
+            if self.hp.data.clean_only.use : 
+                if self.hp.data.clean_only.prob> random.random() : 
+                    noisy = clean
+                    noise = np.zeros_like(clean)
 
             # clean with residual noise
             if self.hp.data.residual_clean.use : 

@@ -150,6 +150,14 @@ def get_model(hp,device="cuda:0"):
     elif hp.model.type == "mpNC" : 
         from mpSE.mpNC import mpNC_helper
         model = mpNC_helper(hp=hp).to(device)
+    elif hp.model.type == "LiSenNet" : 
+        from refs.LiSenNet import LiSenNet
+        model = LiSenNet().to(device)
+    elif hp.model.type == "TinyHencer" :
+        from TinyHencer.TinyHencer import TinyHencerWrapper
+        model = TinyHencerWrapper(
+            **hp.model
+        ).to(device)
     else : 
         raise Exception("ERROR::Unknown model type : {}".format(hp.model.type))
     return model

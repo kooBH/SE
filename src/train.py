@@ -23,6 +23,50 @@ from ptflops import get_model_complexity_info
 
 from common import run,get_model, evaluate, set_seed
 
+def get_optimzer(hp):
+    if hp.train.optimizer == 'Adam' :
+        optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.Adam)
+    elif hp.train.optimizer == 'AdamW' :
+        optimizer = torch.optim.AdamW(model.parameters(), lr=hp.train.AdamW.lr)
+    elif hp.train.optimizer == "AdamP" : 
+        from utils.optimizer import AdamP
+        optimizer = AdamP(model.parameters(), lr=hp.train.AdamP.lr, weight_decay=hp.train.AdamP.weight_decay, betas = hp.train.AdamP.betas, wd_ratio = hp.train.AdamP.wd_ratio,projection = hp.train.AdamP.projection)
+    else :
+        raise Exception("ERROR::Unknown optimizer : {}".format(hp.train.optimizer))
+    return optimizer
+
+def get_scheduler(hp,optimizer,train_loader = None) :
+    if hp.scheduler.type == 'Plateau': 
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
+            mode=hp.scheduler.Plateau.mode,
+            factor=hp.scheduler.Plateau.factor,
+            patience=hp.scheduler.Plateau.patience,
+            min_lr=hp.scheduler.Plateau.min_lr)
+    elif hp.scheduler.type == 'oneCycle':
+        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
+                max_lr = hp.scheduler.oneCycle.max_lr,
+                epochs=hp.train.epoch,
+                steps_per_epoch = len(train_loader)
+          )
+    elif hp.scheduler.type == "LinearPerEpoch" :
+        from utils.schedule import LinearPerEpochScheduler
+        scheduler = LinearPerEpochScheduler(optimizer, len(train_loader))
+    elif hp.scheduler.type == "CosineAnnealingLR" : 
+       scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.scheduler.CosineAnnealingLR.T_max, eta_min=hp.scheduler.CosineAnnealingLR.eta_min) 
+    elif hp.scheduler.type == "StepLR" :
+        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hp.scheduler.StepLR.step_size, gamma=hp.scheduler.StepLR.gamma)
+    elif hp.scheduler.type == "Fixed" : 
+        from torch.optim.lr_scheduler import LambdaLR
+        scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
+    else :
+        raise Exception("Unsupported sceduler type : {}".format(hp.scheduler.type))
+    
+    warmup = None
+    if hp.scheduler.use_warmup : 
+        from utils.schedule import WarmUpScheduler
+        warmup = WarmUpScheduler(optimizer, len(train_loader))
+    return scheduler, warmup
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('--config', '-c', type=str, required=True,
@@ -150,6 +194,7 @@ if __name__ == '__main__':
 
     else :
         raise Exception("ERROR::unknown loss : {}".format(hp.loss.type))
+    
     ##  Dataset
     if hp.task == "Gender" : 
         train_dataset = DatasetGender(hp.data.root_train,hp,sr=hp.data.sr,n_fft=hp.data.n_fft,req_clean_spec=req_clean_spec)
@@ -160,6 +205,10 @@ if __name__ == '__main__':
     elif hp.task == "DNS":
         train_dataset = DatasetDNS(hp,is_train=True)
         test_dataset  = DatasetDNS(hp,is_train=False)
+    elif hp.task == "VD" :
+        from Dataset.DatasetVD import DatasetVD
+        train_dataset = DatasetVD(hp,is_train=True)
+        test_dataset  = DatasetVD(hp,is_train=False)
     else :
         raise Exception("ERROR::Unknown task : {}".format(hp.task))
 
@@ -184,41 +233,13 @@ if __name__ == '__main__':
             model.load_state_dict(torch.load(args.chkpt, map_location=device))
     print("Model Initialized.")
 
-    if hp.train.optimizer == 'Adam' :
-        optimizer = torch.optim.Adam(model.parameters(), lr=hp.train.Adam)
-    elif hp.train.optimizer == 'AdamW' :
-        optimizer = torch.optim.AdamW(model.parameters(), lr=hp.train.AdamW.lr)
-    else :
-        raise Exception("ERROR::Unknown optimizer : {}".format(hp.train.optimizer))
+    optimizer = get_optimzer(hp)
 
-    if hp.scheduler.type == 'Plateau': 
-        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(optimizer,
-            mode=hp.scheduler.Plateau.mode,
-            factor=hp.scheduler.Plateau.factor,
-            patience=hp.scheduler.Plateau.patience,
-            min_lr=hp.scheduler.Plateau.min_lr)
-    elif hp.scheduler.type == 'oneCycle':
-        scheduler = torch.optim.lr_scheduler.OneCycleLR(optimizer,
-                max_lr = hp.scheduler.oneCycle.max_lr,
-                epochs=hp.train.epoch,
-                steps_per_epoch = len(train_loader)
-          )
-    elif hp.scheduler.type == "LinearPerEpoch" :
-        from utils.schedule import LinearPerEpochScheduler
-        scheduler = LinearPerEpochScheduler(optimizer, len(train_loader))
-    elif hp.scheduler.type == "CosineAnnealingLR" : 
-       scheduler =  torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, T_max=hp.scheduler.CosineAnnealingLR.T_max, eta_min=hp.scheduler.CosineAnnealingLR.eta_min) 
-    elif hp.scheduler.type == "StepLR" :
-        scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=hp.scheduler.StepLR.step_size, gamma=hp.scheduler.StepLR.gamma)
-    elif hp.scheduler.type == "Fixed" : 
-        from torch.optim.lr_scheduler import LambdaLR
-        scheduler = LambdaLR(optimizer, lr_lambda=lambda epoch: 1.0)
-    else :
-        raise Exception("Unsupported sceduler type : {}".format(hp.scheduler.type))
-    
-    if hp.scheduler.use_warmup : 
-        from utils.schedule import WarmUpScheduler
-        warmup = WarmUpScheduler(optimizer, len(train_loader))
+    scheduler, warmup = get_scheduler(hp,optimizer,train_loader)
+
+    if hp.train.Discriminator.use :
+        optimizer_D = get_optimzer(hp)
+        schulder_D = get_scheduler(hp,optimizer_D,train_loader)
 
     step = args.step
     cnt_log = 0
@@ -241,10 +262,13 @@ if __name__ == '__main__':
         list_DNS.append((path_noisy,path_clean))
 
     list_white = []
-    for path_noisy in glob.glob(os.path.join(hp.data.eval.white,"noisy","*.wav")) : 
-        fname = os.path.basename(path_noisy)
-        path_clean = os.path.join(hp.data.eval.white,"clean",fname)
-        list_white.append((path_noisy,path_clean))
+    eval_white = False
+    if "white" in hp.data.eval.keys() :
+        eval_white = True
+        for path_noisy in glob.glob(os.path.join(hp.data.eval.white,"noisy","*.wav")) : 
+            fname = os.path.basename(path_noisy)
+            path_clean = os.path.join(hp.data.eval.white,"clean",fname)
+            list_white.append((path_noisy,path_clean))
 
     ## scaler - may occur issue
 
@@ -375,9 +399,10 @@ if __name__ == '__main__':
                         best_metric[m] = metric_dns[m]
                         torch.save(model.state_dict(), str(modelsave_path)+f"/best_{m}.pt")
 
-                metric_white = evaluate(hp,model,list_white,device=device)
-                for m in hp.log.eval : 
-                    writer.log_value(metric_white[m],step,m+"_white")
+                if eval_white :
+                    metric_white = evaluate(hp,model,list_white,device=device)
+                    for m in hp.log.eval : 
+                        writer.log_value(metric_white[m],step,m+"_white")
 
             #torch.save(model.state_dict(), str(modelsave_path)+"/model_PESQWB_{}_epoch_{}.pt".format(metric["PESQ_WB"],epoch))
 
