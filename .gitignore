@@ -136,3 +136,12 @@ config
 
 # tmp
 .fuse*
+
+*.sh
+log
+chkpt
+
+*.onnx
+*.model
+*.model
+*.txt
