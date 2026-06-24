@@ -1,0 +1,46 @@
+train:
+  epoch: 500
+  batch_size: 1
+  num_workers: 1
+  train_interval_iter : 100
+optimizer: 
+  type: 'AdamW'
+  lr: 0.001
+  params :
+    # AdamW default parameters
+    betas: [0.9, 0.999]
+    eps: 1e-8
+    weight_decay: 0.01
+loss:
+  list : ["MultiscaleSpectrogramLoss","MultiscaleCosSDRLoss"]
+  weight : [1.0, 0.1]
+  mwMSELoss : 
+    alpha : 0.9
+    n_mels : 80
+  wSDRLoss :
+    alpha : 0.9
+  MultiscaleCosSDRLoss : 
+    chunk_sizes : [4096, 2048, 1024, 512]
+  MultiscaleSpectrogramLoss : 
+    chunk_sizes : [1024, 512, 256]
+    overlap : 0.5
+    norm_window : True
+    type_weight: 0
+    weight_mag : 1.0
+    weight_cplx : 0.0
+    alpha_mag : 0.5
+  UTMOSLoss :
+    fs : 16000
+scheduler: # Plateau, oneCycle, CosineAnnealingLR
+  type: 'Plateau'
+  use_warmup : True
+  oneCycle:
+    max_lr: 0.0001
+  Plateau:
+    mode: 'min'
+    patience: 2
+    factor: 0.5
+    min_lr: 0.000005
+  CosineAnnealingLR : 
+    T_max : 100  # Maximum number of iterations.
+    eta_min : 0.000001

@@ -1,0 +1,55 @@
+# Array : Linear 6c
+# Target : 1 speaker in target angles - Front [30,150], Back [-150,-30]
+# Interference : 0,1,2 speakers outside target angles
+# Point noise : 0
+
+data:
+  len_data : 48000
+  n_item_train : 3000
+  n_item_valid : 100
+  sr : 16000
+  train : 
+    clean: "/home/data/DNS-Challenge-16kHz/datasets_fullband/clean_fullband/"
+    noise: "/home/data/DNS-Challenge-16kHz/datasets_fullband/noise_fullband"
+  valid : 
+    clean : "/home/data/LibriSpeech-dataset/dev-clean"
+    noise : "/home/data/demand"
+  RIR : 
+    dir_RIR : "/home/data/RIR/RIR_filter_v13_fs_16000_Lin6ch"
+    n_mics : 6
+    ref_mic : 0
+    prob_interf : [0.1, 0.8,0.1]
+    min_interf_azimuth_gap : 30
+    max_point : 0
+    clean : 
+      type : "early_reflection" # anechoic, reverberant, early_reflection
+      early_reflection_time :  0.05
+    target : 
+      angle: [[30,150],[-150,-30]] # front, back
+      max_spk : 1
+  min_on_set_gap : 1.0
+  prob_silence : 0.01
+  Scale : 
+    SIR_clean : [-5,5]
+    SIR_noise : [-5,5]
+    SNR : [-10,20]
+    target_dB_FS : -15
+    target_dB_FS_floating_value :  10
+  RandomNoise : 
+    use : True
+    prob : 0.05
+    f_decay : 0.0
+  biquad_filter :
+    use : False
+    prob : 0.1
+  remove_dc :
+    use : False
+    prob : 0.25
+  rand_resample : 
+    use : False
+    prob : 0.1
+    r_low : 0.9
+    r_high : 1.1
+  MicDrop :
+    use : False
+    prob : 0.05

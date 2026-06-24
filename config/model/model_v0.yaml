@@ -1,0 +1,4 @@
+model : 
+    type : "Model"
+    params : 
+        param_1 : 1

@@ -1,0 +1,12 @@
+data : 
+  type : VD
+  train : 
+    clean : "/home/data/Voicebank+Demand/clean_trainset_28spk_wav"
+    noisy : "/home/data/Voicebank+Demand/noisy_trainset_28spk_wav"
+  # DNS dataset for validation:w
+  valid : 
+    root : "/home/data/training_set_sept12_16k/"
+  eval :
+    VD : "/home/data/Voicebank+Demand"
+  sr : 16000
+  len_data : 48000

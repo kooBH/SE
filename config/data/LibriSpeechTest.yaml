@@ -1,0 +1,23 @@
+save_dir : "/home/data/Evaluation/LibriSpeechTest"
+root_clean : "/home/data/LibriSpeech-dataset/test-clean"
+root_noise : "/home/data/demand"
+RIR : "/home/data/DNS-Challenge-16kHz/datasets_fullband/impulse_responses"
+len_data : 49152 # 4096 * 12
+max_len_data : 49152
+n_item : 300 # Max Item value, if clean audio is less than this value, n_item don't work
+sr : 16000
+SNR : [-10,0]
+Scale :
+  method : "dB" # dB or None
+  # -45 ~ -5 dB FS
+  target_dB_FS : -10
+  target_dB_FS_floating_value :  10
+prob_spk : [0.00, 1.0, 0.0]
+Reverb :
+  use : True
+  prob : 0.5
+  deverb_clean : True
+  clean_rir_len : 25
+biquad_filter :
+  use : True
+  prob : 0.1

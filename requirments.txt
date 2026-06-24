@@ -1,0 +1,11 @@
+torch
+torchaudio
+pyyaml
+librosa
+numpy==1.26.4
+tensorboardx
+matplotlib=3.9.4
+hydra-core
+pesq
+pystoi
+tqdm

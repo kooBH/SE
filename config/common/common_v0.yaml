@@ -1,0 +1,10 @@
+n_fft : 512
+n_hop : 256
+sr : 16000
+
+log:
+  root: '/home/data/kbh/logs/Test'
+  plot_spec : False
+  eval : 
+    DB : [VD]
+    metric : ["PESQ_WB","SISDR","DNSMOS"]

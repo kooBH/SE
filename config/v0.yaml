@@ -1,0 +1,25 @@
+# e.g. python ./train.py --config-name ${VERSION} version=${VERSION} device=${DEVICE}\
+
+# Date : 2026.04.21
+# Update : init
+# Previous : -
+# Note : -
+
+defaults:
+  - common@_global_: common_v0
+  - train@_global_: train_v0
+  - data@_global_: data_VD
+  - model@_global_: model_v0 
+  - _self_
+
+version: default
+device: cuda:0
+seed: 42
+chkpt: null
+step: 0
+lr_override: null
+resume_last : false
+
+hydra:
+  job:
+    chdir: false
